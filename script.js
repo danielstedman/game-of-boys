@@ -1,5 +1,3 @@
-import { UNITS, FACTIONS } from './units.js';
-
 // Make sure the DOM is fully loaded before initializing
 document.addEventListener("DOMContentLoaded", () => {
     // Initialize game elements
