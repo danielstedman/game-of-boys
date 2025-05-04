@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Game of Boys</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="welcome-screen" class="screen active">
+        <h1>Welcome to Game of Boys</h1>
+        <button id="start-game-btn">OK</button>
+    </div>
+
+    <div id="game-area" class="screen">
+        <div id="game-board-container">
+            <div id="game-board"></div>
+            <div id="game-over-overlay" class="overlay">
+                <h2 id="game-over-message"></h2>
+            </div>
+        </div>
+        <!-- Sidebar container for desktop layout -->
+        <div class="sidebar">
+            <div id="controls-area">
+                <!-- Unit selection, points, stats, start button -->
+            </div>
+            <div id="log-area">
+                 <!-- Game log -->
+            </div>
+        </div>
+    </div>
+
+    <script src="units.js" type="module"></script>
+    <script src="script.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,510 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    background-color: #222; /* Dark gray background */
+    color: #eee; /* Light gray text */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* Removed overflow: hidden; to allow scrolling */
+}
+
+.screen {
+    display: none; /* Hide screens by default */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    /* Use min-height instead of height to allow content expansion */
+    min-height: 100vh; 
+    position: absolute; 
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex; /* Show the active screen */
+    position: relative; /* Change to relative when active to allow natural flow/scrolling */
+    width: 100%;
+    min-height: 100vh;
+}
+
+#welcome-screen h1 {
+    font-size: 1.5em;
+    margin-bottom: 40px;
+    color: #fff; /* White text */
+}
+
+#start-game-btn {
+    width: 100px;
+    height: 100px;
+    font-size: 1.2em;
+    background-color: #eee; /* Light gray button */
+    color: #333; /* Dark gray text */
+    border: 2px solid #888; /* Medium gray border */
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#start-game-btn:hover {
+    background-color: #ccc; /* Lighter gray on hover */
+}
+
+#start-game-btn:active {
+    background-color: #aaa; /* Darker gray when pressed */
+}
+
+/* --- Game Area Layout --- */
+#game-area {
+    flex-direction: column; /* Default: Stack board, controls, log vertically for mobile */
+    justify-content: flex-start;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* Desktop Layout */
+@media (min-width: 1024px) {
+    #game-area {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    #game-board-container {
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    #controls-area {
+        width: 300px;
+        margin: 0;
+        flex-shrink: 0;
+        height: 90vmin;
+        max-height: 500px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #unit-selection-menu {
+        flex: 1;
+        max-height: none;
+    }
+
+    #log-area {
+        flex: 1;
+        max-height: none;
+        margin-top: 10px;
+    }
+}
+
+#game-board-container {
+    width: 90vmin; /* Use viewport minimum dimension for scaling */
+    max-width: 500px; /* Max size on larger screens */
+    height: 90vmin;
+    max-height: 500px;
+    margin: 10px auto; /* Center the board */
+    position: relative; /* For overlay */
+    flex-shrink: 0; /* Prevent board from shrinking */
+}
+
+#game-board {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    grid-template-rows: repeat(16, 1fr);
+    width: 100%;
+    height: 100%;
+    border: 2px solid #888; /* Outer border for the board */
+    box-sizing: border-box;
+}
+
+.tile {
+    background-color: #fff; /* White tile */
+    border: 1px solid #ccc; /* Thin gray border */
+    box-sizing: border-box; /* Include border in size */
+    position: relative; /* For positioning units/text */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.6em; /* Small font size for terrain letters */
+    color: #555;
+}
+
+/* Controls and Log Area (Mobile First) */
+#controls-area {
+    width: 90%;
+    max-width: 500px;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: #333;
+    border: 1px solid #555;
+    box-sizing: border-box;
+    border-radius: 4px;
+    flex-shrink: 0; /* Prevent controls from shrinking */
+}
+
+#log-area {
+    width: 90%;
+    max-width: 500px;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: #1a1a1a; /* Very dark gray background */
+    border: 1px solid #444;
+    min-height: 80px; 
+    max-height: 150px; /* Limit height */
+    color: #ccc; /* Light gray text */
+    font-size: 0.9em;
+    overflow-y: auto; /* Allow scrolling within log area */
+    text-align: left; 
+    box-sizing: border-box; 
+    border-radius: 4px;
+    flex-shrink: 0; /* Prevent log area from shrinking */
+}
+
+#log-area p {
+    margin: 3px 0;
+    padding: 0;
+    line-height: 1.3;
+    color: #eee;
+    opacity: 0.85;
+}
+
+#log-area p:nth-last-child(-n+3) {
+    opacity: 1;
+}
+
+.log-crown {
+    color: #90caf9;
+}
+
+.log-horde {
+    color: #ef9a9a;
+}
+
+.log-message-important {
+    text-align: center;
+    font-weight: bold;
+    border-top: 1px solid #555;
+    margin-top: 10px;
+    padding-top: 5px;
+    color: #fff;
+}
+
+.log-message-death::before {
+    content: "☠️ ";
+}
+
+.log-message-spell::before {
+    content: "🔥 ";
+}
+
+.log-message-crit::before {
+    content: "⚡ ";
+}
+
+/* Terrain Styles */
+.tile.terrain-grass {
+    background-color: #e8f5e9; /* Pale green */
+}
+.tile.terrain-forest {
+    background-color: #e0f2f1; /* Misty gray-green */
+}
+.tile.terrain-sand {
+    background-color: #fff3e0; /* Soft brown */
+}
+
+/* Unit Placement Styles */
+.tile .terrain-letter {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 0.8em;
+    color: #aaa; /* Make terrain letter less prominent */
+    z-index: 1; /* Ensure it's below units */
+}
+
+.unit {
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    border-radius: 50%; /* Make units circular */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.1em; /* Make unit symbol clear */
+    z-index: 2; /* Ensure units are above terrain letters */
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.5); /* Add slight shadow */
+    cursor: default; /* Indicate it's placed, not interactive for now */
+    user-select: none; /* Prevent text selection */
+}
+
+.unit-health-container {
+    position: absolute;
+    bottom: -8px; /* Reduced from -15px to move closer to unit */
+    left: 0;
+    width: 100%;
+    height: 4px; /* Slightly reduced height for better proportion */
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.unit-health-bar {
+    height: 100%;
+    width: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.unit-health-bar.high {
+    background-color: #4CAF50; /* Green */
+}
+
+.unit-health-bar.medium {
+    background-color: #FFC107; /* Yellow */
+}
+
+.unit-health-bar.low {
+    background-color: #F44336; /* Red */
+}
+
+.crown-unit {
+    background-color: #fff; /* White background for Crown units */
+    color: #333; /* Dark text */
+    border: 2px solid #aaa; /* Gray border */
+}
+
+.horde-unit {
+    background-color: #444; /* Dark gray background for Horde units */
+    color: #eee; /* Light text */
+    border: 2px solid #777; /* Medium gray border */
+}
+
+.deployment-zone {
+    box-shadow: inset 0 0 0 1px #bbb; /* Inner border */
+}
+
+/* Unit Selection Styles */
+#unit-selection-menu {
+    display: flex;
+    flex-direction: column;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    gap: 5px;
+}
+
+.unit-select-btn {
+    padding: 12px 15px;
+    font-size: 0.9em;
+    background-color: #555;
+    color: #eee;
+    border: 1px solid #777;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    width: 100%;
+    text-align: left;
+    line-height: 1.3;
+    border-radius: 4px;
+}
+
+.unit-select-btn:hover {
+    background-color: #666;
+    border-color: #888;
+}
+
+.unit-select-btn.selected {
+    background-color: #eee;
+    color: #333;
+    border: 2px solid #fff;
+    font-weight: bold;
+}
+
+/* Unit Stats Display Styles */
+#unit-stats-display {
+    margin-top: 15px; /* Space above the stats box */
+    padding: 10px;
+    background-color: #2a2a2a; /* Slightly darker than controls background */
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ddd; /* Light gray text */
+    font-size: 0.9em;
+    line-height: 1.4;
+    min-height: 60px; /* Ensure it has some height even when empty */
+    text-align: left; /* Align text to the left */
+}
+
+#unit-stats-display strong {
+    color: #fff; /* White color for unit name */
+    font-size: 1.1em;
+}
+
+/* Points Display Styles */
+#points-display {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff; /* White text */
+    background-color: #444; /* Darker gray background */
+    padding: 8px 12px;
+    margin-bottom: 10px; /* Space below points */
+    border-radius: 4px;
+    text-align: center;
+    transition: color 0.3s; /* Smooth transition for error state */
+}
+
+#points-display.error {
+    color: #ff6666; /* Reddish color for error */
+}
+
+/* Start Battle Button Styles */
+#start-battle-btn {
+    display: block; /* Make it take full width available in controls */
+    width: 80%;
+    max-width: 300px; /* Limit width on larger screens */
+    margin: 20px auto 10px auto; /* Center it with some margin */
+    padding: 12px 20px;
+    font-size: 1.3em;
+    font-weight: bold;
+    background-color: #eee; /* Light gray */
+    color: #333; /* Dark text */
+    border: 2px solid #888;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#start-battle-btn:hover {
+    background-color: #ccc;
+}
+
+#start-battle-btn:active {
+    background-color: #aaa;
+}
+
+#start-battle-btn:disabled {
+    background-color: #555; /* Darker gray when disabled */
+    color: #999; /* Lighter text when disabled */
+    cursor: not-allowed;
+    border-color: #666;
+}
+
+/* Game Over Overlay Styles */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 10; /* Ensure it's above the board */
+}
+
+.overlay.active {
+    display: flex; /* Show when active */
+}
+
+#game-over-message {
+    color: #fff; /* White text */
+    font-size: 2em;
+    padding: 20px;
+    background-color: #333; /* Dark gray background for message */
+    border: 2px solid #888;
+    border-radius: 10px;
+}
+
+/* Visual Effects Styles */
+@keyframes flash-attack {
+    0%, 100% { outline: none; }
+    50% { outline: 3px solid #fff; } /* White outline for attacker */
+}
+
+@keyframes flash-damage {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; } /* Briefly fade attacked unit */
+}
+
+@keyframes flash-wizard {
+    0% { background-color: rgba(255, 0, 0, 0.3); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flash-splash-damage {
+    0% { background-color: rgba(255, 0, 0, 0.2); }
+    50% { background-color: rgba(255, 0, 0, 0.4); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flame {
+    0% { 
+        background-color: rgba(255, 100, 0, 0.3);
+        box-shadow: 0 0 10px 5px rgba(255, 100, 0, 0.3);
+    }
+    50% { 
+        background-color: rgba(255, 200, 0, 0.5);
+        box-shadow: 0 0 20px 10px rgba(255, 200, 0, 0.5);
+    }
+    100% { 
+        background-color: rgba(255, 100, 0, 0.3);
+        box-shadow: 0 0 10px 5px rgba(255, 100, 0, 0.3);
+    }
+}
+
+@keyframes flame-particles {
+    0% { 
+        transform: translateY(0) scale(1);
+        opacity: 0.8;
+    }
+    100% { 
+        transform: translateY(-20px) scale(0.5);
+        opacity: 0;
+    }
+}
+
+.attack-flash {
+    animation: flash-attack 0.3s ease-in-out;
+}
+
+.damage-flash {
+    animation: flash-damage 0.3s ease-in-out;
+}
+
+.wizard-flash {
+    animation: flash-wizard 0.5s ease-in-out;
+}
+
+.splash-damage-flash {
+    animation: flash-splash-damage 0.5s ease-in-out;
+}
+
+.wizard-flame {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    animation: flame 0.5s ease-in-out;
+    pointer-events: none;
+}
+
+.wizard-flame-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: radial-gradient(circle, rgba(255,200,0,1) 0%, rgba(255,100,0,0) 70%);
+    border-radius: 50%;
+    animation: flame-particles 0.5s ease-out forwards;
+    pointer-events: none;
+}
+
