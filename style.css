@@ -202,12 +202,25 @@ body {
     opacity: 1;
 }
 
+/* Game Log Faction Colors */
 .log-crown {
-    color: #90caf9;
+    color: #b3e5fc; /* Light blue */
+}
+.log-horde {
+    color: #ffb199; /* Light orange/red */
 }
 
-.log-horde {
-    color: #ef9a9a;
+/* Important event styling */
+.log-important {
+    font-weight: bold;
+    font-style: italic;
+    animation: log-flash 0.7s;
+}
+
+@keyframes log-flash {
+    0% { background-color: #fffbe7; }
+    50% { background-color: #ffe082; }
+    100% { background-color: transparent; }
 }
 
 .log-message-important {
@@ -231,15 +244,31 @@ body {
     content: "⚡ ";
 }
 
-/* Terrain Styles */
+/* Subtle Terrain Styles */
 .tile.terrain-grass {
-    background-color: #e8f5e9; /* Pale green */
+    background: linear-gradient(135deg, #f3fbe9 70%, #c8e6c9 100%);
+    border: 1px solid #c8e6c9;
 }
 .tile.terrain-forest {
-    background-color: #e0f2f1; /* Misty gray-green */
+    background: radial-gradient(circle at 60% 40%, #a5d6a7 60%, #e0f2f1 100%);
+    border: 1px solid #81c784;
 }
 .tile.terrain-sand {
-    background-color: #fff3e0; /* Soft brown */
+    background: repeating-linear-gradient(135deg, #fdf6e3, #e0c69c 10px, #fdf6e3 20px);
+    border: 1px solid #e0c69c;
+}
+.tile.terrain-water {
+    background: linear-gradient(90deg, #e3f2fd 0%, #b3e5fc 50%, #e3f2fd 100%);
+    background-size: 100% 16px;
+    border: 1px solid #b3e5fc;
+}
+.tile.terrain-mountain {
+    background: linear-gradient(135deg, #e0e0e0 40%, #bdbdbd 60%, #f5f5f5 100%);
+    border: 1px solid #bdbdbd;
+}
+.tile.terrain-swamp {
+    background: linear-gradient(135deg, #c8b7a6 40%, #b0bfa3 60%, #d7ccc8 100%);
+    border: 1px solid #a1887f;
 }
 
 /* Unit Placement Styles */
@@ -256,16 +285,17 @@ body {
     position: absolute;
     width: 80%;
     height: 80%;
-    border-radius: 50%; /* Make units circular */
+    border-radius: 18px; /* More rounded corners */
     display: flex;
     justify-content: center;
     align-items: center;
     font-weight: bold;
-    font-size: 1.1em; /* Make unit symbol clear */
-    z-index: 2; /* Ensure units are above terrain letters */
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.5); /* Add slight shadow */
-    cursor: default; /* Indicate it's placed, not interactive for now */
-    user-select: none; /* Prevent text selection */
+    font-size: 1.1em;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 2px rgba(0,0,0,0.04);
+    cursor: default;
+    user-select: none;
+    transition: box-shadow 0.2s, border 0.2s, background 0.2s;
 }
 
 .unit-health-container {
@@ -298,15 +328,15 @@ body {
 }
 
 .crown-unit {
-    background-color: #fff; /* White background for Crown units */
-    color: #333; /* Dark text */
-    border: 2px solid #aaa; /* Gray border */
+    background: linear-gradient(135deg, #e3f2fd 60%, #b3e5fc 100%);
+    color: #222;
+    border: 2px solid #90caf9;
 }
 
 .horde-unit {
-    background-color: #444; /* Dark gray background for Horde units */
-    color: #eee; /* Light text */
-    border: 2px solid #777; /* Medium gray border */
+    background: linear-gradient(135deg, #ffebee 60%, #ffb199 100%);
+    color: #222;
+    border: 2px solid #ef9a9a;
 }
 
 .deployment-zone {
@@ -527,5 +557,193 @@ body {
     border-radius: 50%;
     animation: flame-particles 0.5s ease-out forwards;
     pointer-events: none;
+}
+
+.welcome-meta {
+    font-size: 1em;
+    color: #bbb;
+    margin-bottom: 20px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+}
+
+/* Sidebar hide/show transitions */
+.sidebar {
+    transition: transform 0.3s, opacity 0.3s;
+}
+.sidebar.hidden {
+    transform: translateX(120%);
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+}
+
+#show-panel-btn {
+    display: none;
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 100;
+    padding: 12px 20px;
+    font-size: 1.1em;
+    background: #444;
+    color: #fff;
+    border: 2px solid #888;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    opacity: 0.95;
+}
+#show-panel-btn:active, #show-panel-btn:focus {
+    background: #222;
+    outline: none;
+}
+
+@media (min-width: 1024px) {
+    #show-panel-btn {
+        right: 40px;
+        bottom: 40px;
+        font-size: 1.2em;
+    }
+    .sidebar.hidden {
+        position: static;
+    }
+}
+
+/* Flash Animations for Important Log Events */
+.log-flash-death {
+    animation: log-flash-death 0.7s;
+}
+@keyframes log-flash-death {
+    0% { background-color: #ffebee; }
+    50% { background-color: #ffb199; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-crit {
+    animation: log-flash-crit 0.7s;
+}
+@keyframes log-flash-crit {
+    0% { background-color: #fffde7; }
+    50% { background-color: #ffe082; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-spell {
+    animation: log-flash-spell 0.7s;
+}
+@keyframes log-flash-spell {
+    0% { background-color: #e3f2fd; }
+    50% { background-color: #b3e5fc; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-victory {
+    animation: log-flash-victory 0.7s;
+}
+@keyframes log-flash-victory {
+    0% { background-color: #e8f5e9; }
+    50% { background-color: #a5d6a7; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-defeat {
+    animation: log-flash-defeat 0.7s;
+}
+@keyframes log-flash-defeat {
+    0% { background-color: #ffebee; }
+    50% { background-color: #ef9a9a; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-important {
+    animation: log-flash-important 0.7s;
+}
+@keyframes log-flash-important {
+    0% { background-color: #fffbe7; }
+    50% { background-color: #ffe082; }
+    100% { background-color: transparent; }
+}
+
+/* Unit Enhancements */
+.unit {
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    border-radius: 18px; /* More rounded corners */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 2px rgba(0,0,0,0.04);
+    cursor: default;
+    user-select: none;
+    transition: box-shadow 0.2s, border 0.2s, background 0.2s;
+}
+
+.unit.unit-active {
+    box-shadow: 0 0 16px 4px #fff176, 0 2px 8px rgba(0,0,0,0.18);
+    border: 2.5px solid #fffde7;
+    z-index: 3;
+}
+
+.unit.unit-pulse-spell {
+    animation: unit-pulse-spell 0.7s;
+}
+@keyframes unit-pulse-spell {
+    0% { box-shadow: 0 0 0 0 #b3e5fc; }
+    50% { box-shadow: 0 0 24px 8px #b3e5fc; }
+    100% { box-shadow: 0 0 0 0 #b3e5fc; }
+}
+
+.unit.unit-pulse-crit {
+    animation: unit-pulse-crit 0.7s;
+}
+@keyframes unit-pulse-crit {
+    0% { box-shadow: 0 0 0 0 #ffe082; }
+    50% { box-shadow: 0 0 24px 8px #ffe082; }
+    100% { box-shadow: 0 0 0 0 #ffe082; }
+}
+
+/* Special Move Visual Effects */
+.flash-fire {
+  background-color: #ff7043 !important;
+  box-shadow: 0 0 12px 6px #ff5722;
+}
+.flash-heal {
+  background-color: #a5d6a7 !important;
+  box-shadow: 0 0 10px 5px #81c784;
+}
+.flash-stun {
+  background-color: #90caf9 !important;
+  box-shadow: 0 0 8px 4px #42a5f5;
+}
+.flash-boost {
+  background-color: #fdd835 !important;
+  box-shadow: 0 0 6px 3px #ffee58;
+}
+.flash-teleport {
+  background-color: #ce93d8 !important;
+  box-shadow: 0 0 10px 6px #ba68c8;
+}
+
+/* Projectile Animation */
+.projectile {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  z-index: 100;
+  pointer-events: none;
+  transition: transform 0.15s linear;
+}
+.projectile-arrow {
+  background-color: #000;
+}
+.projectile-fire {
+  background-color: red;
+  box-shadow: 0 0 4px orange;
 }
 

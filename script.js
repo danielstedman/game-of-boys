@@ -53,6 +53,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const HORDE_UNIT_IDS = Object.keys(UNITS.horde);
 
+    const IMPORTANT_EVENT_TYPES = ['death', 'crit', 'spell', 'important', 'victory', 'defeat'];
+    const FLASH_CLASS_MAP = {
+        death: 'log-flash-death',
+        crit: 'log-flash-crit',
+        spell: 'log-flash-spell',
+        victory: 'log-flash-victory',
+        defeat: 'log-flash-defeat',
+        important: 'log-flash-important'
+    };
+
+    // Message templates for log events
+    const LOG_TEMPLATES = {
+        attack: [
+            '[A] strikes [D] for [DMG]!',
+            '[A] hacks at [D], dealing [DMG]!',
+            '[A] attacks — blood sprays from [D]!',
+            '[A] swings at [D] and hits for [DMG]!',
+            '[A] lands a blow on [D] ([DMG] damage)!'
+        ],
+        move: [
+            '[U] advances.',
+            '[U] moves forward.',
+            '[U] charges ahead.',
+            '[U] repositions.',
+            '[U] shifts on the battlefield.'
+        ],
+        hold: [
+            '[U] holds position.',
+            '[U] stands their ground.',
+            '[U] waits for an opening.',
+            '[U] braces for impact.'
+        ],
+        death: [
+            '[D] falls, their shield shattered!',
+            '[D] screams as they collapse!',
+            '[D] is torn apart in a burst of gore!',
+            '[D] drops to the ground, defeated!',
+            'A silence falls as [D] is slain!'
+        ],
+        spell: [
+            '[A] unleashes a torrent of magic!',
+            '[A] casts a devastating spell!',
+            'Arcane fire erupts from [A]!',
+            '[A] conjures a blast of energy!'
+        ],
+        crit: [
+            '[A] lands a CRITICAL HIT on [D] for [DMG]!',
+            '[A] delivers a devastating blow to [D] ([DMG] CRIT)!',
+            '[A] strikes true — [D] is rocked by a critical hit!'
+        ]
+    };
+
+    function randomTemplate(type) {
+        const arr = LOG_TEMPLATES[type];
+        if (!arr) return null;
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
     function getRandomTerrain() {
         return TERRAIN_TYPES[Math.floor(Math.random() * TERRAIN_TYPES.length)];
     }
@@ -151,6 +209,51 @@ document.addEventListener("DOMContentLoaded", () => {
         if (battleTimeout) clearTimeout(battleTimeout);
         if (gameOverOverlay) gameOverOverlay.classList.remove("active");
 
+        // --- New: Generate terrain in blobs with all types ---
+        const terrainMap = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill('grass'));
+        const blobTypes = ["forest", "sand", "water", "mountain", "swamp"];
+        const numBlobs = Math.floor(Math.random() * 11) + 10; // 10-20 blobs
+
+        for (let b = 0; b < numBlobs; b++) {
+            const blobType = blobTypes[Math.floor(Math.random() * blobTypes.length)];
+            const blobSize = Math.floor(Math.random() * 6) + 4; // 4-9 tiles
+            let tries = 0;
+            let startRow, startCol;
+            // Find a starting point that is still grass
+            do {
+                startRow = Math.floor(Math.random() * BOARD_SIZE);
+                startCol = Math.floor(Math.random() * BOARD_SIZE);
+                tries++;
+            } while (terrainMap[startRow][startCol] !== 'grass' && tries < 100);
+            if (terrainMap[startRow][startCol] !== 'grass') continue;
+            // Flood-fill/random walk to grow the blob
+            let blobTiles = [{ r: startRow, c: startCol }];
+            terrainMap[startRow][startCol] = blobType;
+            for (let i = 1; i < blobSize; i++) {
+                // Pick a random tile from the blob so far
+                const base = blobTiles[Math.floor(Math.random() * blobTiles.length)];
+                // Try to expand in a random direction
+                const directions = [
+                    { r: 0, c: 1 }, { r: 0, c: -1 }, { r: 1, c: 0 }, { r: -1, c: 0 },
+                    { r: 1, c: 1 }, { r: 1, c: -1 }, { r: -1, c: 1 }, { r: -1, c: -1 }
+                ];
+                const shuffled = directions.sort(() => Math.random() - 0.5);
+                let placed = false;
+                for (const dir of shuffled) {
+                    const nr = base.r + dir.r;
+                    const nc = base.c + dir.c;
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && terrainMap[nr][nc] === 'grass') {
+                        terrainMap[nr][nc] = blobType;
+                        blobTiles.push({ r: nr, c: nc });
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) break; // Can't grow further
+            }
+        }
+
+        // --- Render the board using terrainMap ---
         for (let i = 0; i < BOARD_SIZE * BOARD_SIZE; i++) {
             const tile = document.createElement("div");
             tile.classList.add("tile");
@@ -160,13 +263,14 @@ document.addEventListener("DOMContentLoaded", () => {
             tile.dataset.col = col;
             tile.id = `tile-${row}-${col}`;
 
-            const terrainType = getRandomTerrain();
+            const terrainType = terrainMap[row][col];
             tile.classList.add(`terrain-${terrainType}`);
             tile.dataset.terrain = terrainType;
-            const terrainSpan = document.createElement("span");
-            terrainSpan.classList.add("terrain-letter");
-            terrainSpan.textContent = TERRAIN_REPRESENTATION[terrainType];
-            tile.appendChild(terrainSpan);
+            // Removed terrainSpan/letter for a cleaner look
+            // const terrainSpan = document.createElement("span");
+            // terrainSpan.classList.add("terrain-letter");
+            // terrainSpan.textContent = TERRAIN_REPRESENTATION[terrainType] || '?';
+            // tile.appendChild(terrainSpan);
 
             tile.addEventListener("click", handleTileClick);
 
@@ -176,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             gameBoard.appendChild(tile);
         }
-        console.log("Game board created with terrain and placement listeners.");
+        console.log("Game board created with terrain blobs and placement listeners.");
     }
 
     function displayUnitStats(unitId) {
@@ -200,7 +304,15 @@ document.addEventListener("DOMContentLoaded", () => {
         currentUnitIndex = 0;
         currentTurnUnitOrder = [];
         console.log("Battle Started!");
-        logMessage("Battle Begins!");
+        logMessage("Battle Begins!", 'important');
+
+        // Hide the deployment panel/sidebar and show the Show Panel button
+        const sidebar = document.querySelector('.sidebar');
+        const showPanelBtn = document.getElementById('show-panel-btn');
+        if (sidebar && showPanelBtn) {
+            sidebar.classList.add('hidden');
+            showPanelBtn.style.display = 'block';
+        }
 
         const unitButtons = controlsArea.querySelectorAll(".unit-select-btn");
         unitButtons.forEach(btn => btn.disabled = true);
@@ -258,9 +370,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (enemiesPlaced > 0) {
-             logMessage(`The Horde appears with ${enemiesPlaced} units!`);
+             logMessage(`Enemy reinforcements arrive! (${enemiesPlaced} units)`, 'important');
         } else {
-             logMessage("The Horde failed to muster forces?");
+             logMessage("No enemy reinforcements arrived.", 'important');
         }
         console.log("Enemy units generated.");
     }
@@ -294,38 +406,33 @@ document.addEventListener("DOMContentLoaded", () => {
             line = lines[Math.floor(Math.random() * lines.length)];
         }
 
-        logMessage(line, 'normal');
+        logMessage(line, 'normal', false, unit.faction);
     }
 
-    function logMessage(message, type = 'normal', isDramatic = false) {
+    function logMessage(message, type = 'normal', isDramatic = false, faction = null) {
         if (!logArea) return;
         gameLog.push(message);
         const logEntry = document.createElement("p");
         logEntry.textContent = message;
-        
-        // Add appropriate class based on message type
-        if (type !== 'normal') {
-            logEntry.classList.add(`log-message-${type}`);
+
+        // Faction-based coloring
+        if (faction === 'crown') {
+            logEntry.classList.add('log-crown');
+        } else if (faction === 'horde') {
+            logEntry.classList.add('log-horde');
         }
-        
-        // Add faction-based coloring
-        const unitMatch = message.match(/^([A-Za-z]+)/);
-        if (unitMatch) {
-            const unitName = unitMatch[0];
-            const unit = Object.values(placedUnits).find(u => u.name === unitName);
-            if (unit) {
-                logEntry.classList.add(`log-${unit.faction}`);
-            }
+
+        // Important event styling and flash
+        if (IMPORTANT_EVENT_TYPES.includes(type)) {
+            logEntry.classList.add('log-important');
+            const flashClass = FLASH_CLASS_MAP[type] || 'log-flash-important';
+            logEntry.classList.add(flashClass);
         }
-        
-        if (isDramatic) {
-            logEntry.classList.add('log-message-dramatic');
-        }
-        
+
         logArea.appendChild(logEntry);
         logArea.scrollTop = logArea.scrollHeight;
         console.log("Log: ", message);
-        
+
         // Return a promise that resolves after the delay if it's a dramatic event
         if (isDramatic) {
             return new Promise(resolve => setTimeout(resolve, 500));
@@ -400,13 +507,21 @@ document.addEventListener("DOMContentLoaded", () => {
         return { enemy: nearestEnemy, distance: minDistance };
     }
 
+    // Helper to fill a template with values
+    function fillTemplate(template, data) {
+        return template
+            .replace('[A]', data.attacker || '')
+            .replace('[D]', data.defender || '')
+            .replace('[DMG]', data.damage !== undefined ? data.damage : '')
+            .replace('[U]', data.unit || '');
+    }
+
     function moveUnit(unit, targetEnemy) {
         let moved = false;
         let currentMinDist = getDistance(unit, targetEnemy);
         const maxMoves = unit.speed;
 
-        const potentialMoves = [];
-        // Add all 8 possible directions (orthogonal and diagonal)
+        // All 8 possible directions (orthogonal and diagonal)
         const directions = [
             { r: 0, c: 1 },   // right
             { r: 0, c: -1 },  // left
@@ -420,8 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let movesMade = 0;
         while (movesMade < maxMoves) {
-            let foundMove = false;
-            let bestMove = null;
+            let bestMoves = [];
             let bestDist = currentMinDist;
 
             // Check all possible moves
@@ -449,23 +563,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 const dist = Math.abs(newRow - targetEnemy.row) + Math.abs(newCol - targetEnemy.col);
                 if (dist < bestDist) {
                     bestDist = dist;
-                    bestMove = { r: newRow, c: newCol };
-                    foundMove = true;
+                    bestMoves = [{ r: newRow, c: newCol }];
+                } else if (dist === bestDist) {
+                    bestMoves.push({ r: newRow, c: newCol });
                 }
             }
 
-            if (!foundMove) break;
+            if (bestMoves.length === 0 || bestDist >= currentMinDist) break;
 
-            // Execute the move
+            // Pick randomly among the best moves
+            const chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
             const oldTileKey = `${unit.row}-${unit.col}`;
-            const newTileKey = `${bestMove.r}-${bestMove.c}`;
+            const newTileKey = `${chosenMove.r}-${chosenMove.c}`;
             const oldTile = document.getElementById(`tile-${oldTileKey}`);
             const newTile = document.getElementById(`tile-${newTileKey}`);
             const unitElement = document.getElementById(unit.id);
 
             if (oldTile && newTile && unitElement) {
-                unit.row = bestMove.r;
-                unit.col = bestMove.c;
+                unit.row = chosenMove.r;
+                unit.col = chosenMove.c;
                 delete oldTile.dataset.unitOnTile;
                 newTile.dataset.unitOnTile = unit.id;
                 newTile.appendChild(unitElement);
@@ -478,9 +594,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (moved) {
-            logMessage(`${unit.name} (${unit.id.substring(0,4)}) moves ${movesMade} squares.`);
+            const msg = fillTemplate(randomTemplate('move'), { unit: unit.name });
+            logMessage(msg, 'normal', false, unit.faction);
         } else {
-            logMessage(`${unit.name} (${unit.id.substring(0,4)}) cannot find a path or is blocked.`);
+            const msg = fillTemplate(randomTemplate('hold'), { unit: unit.name });
+            logMessage(msg, 'normal', false, unit.faction);
         }
         return moved;
     }
@@ -519,19 +637,106 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 500);
     }
 
+    function flashElement(element, className, duration = 400) {
+        if (!element) return;
+        element.classList.add(className);
+        setTimeout(() => {
+            element.classList.remove(className);
+        }, duration);
+    }
+
+    function performSpecialMove(attacker, target) {
+        const move = attacker.specialMove;
+        let logText = '';
+        let skipNormalAttack = false;
+        switch (move.effect) {
+            case 'lastStand':
+                if (attacker.currentHp < 10) {
+                    const dmg = (Math.max(1, attacker.attack - target.defense)) * 2;
+                    target.currentHp -= dmg;
+                    if (target.healthBar) updateHealthBar(target, target.healthBar);
+                    logText = `${attacker.name} uses ${move.name}! Double damage: ${dmg} to ${target.name}!`;
+                    skipNormalAttack = true;
+                    if (target.currentHp <= 0) {
+                        logMessage(`${target.name} is obliterated by ${attacker.name}'s Last Stand!`, 'death', true, target.faction);
+                        removeUnit(target);
+                    }
+                }
+                break;
+            case 'quickShot':
+                logText = `${attacker.name} uses ${move.name}! Attacks twice!`;
+                attackUnit(attacker, target);
+                break;
+            case 'shieldBash':
+                logText = `${attacker.name} uses ${move.name}! ${target.name} is stunned!`;
+                break;
+            case 'infernoSurge':
+                logText = `${attacker.name} unleashes ${move.name}! 3x3 AoE fire!`;
+                break;
+            case 'divineShield':
+                logText = `${attacker.name} activates ${move.name}! Blocks all damage this turn!`;
+                break;
+            case 'piercingBolt':
+                const dmgPierce = attacker.attack;
+                target.currentHp -= dmgPierce;
+                if (target.healthBar) updateHealthBar(target, target.healthBar);
+                logText = `${attacker.name} fires a ${move.name}! Ignores defense: ${dmgPierce} to ${target.name}!`;
+                skipNormalAttack = true;
+                if (target.currentHp <= 0) {
+                    logMessage(`${target.name} is felled by a Piercing Bolt!`, 'death', true, target.faction);
+                    removeUnit(target);
+                }
+                break;
+            case 'holyMend':
+                logText = `${attacker.name} uses ${move.name}! Heals nearest ally 10 HP.`;
+                break;
+            case 'blindingDust':
+                logText = `${attacker.name} uses ${move.name}! ${target.name}'s accuracy is reduced!`;
+                break;
+            default:
+                logText = `${attacker.name} attempts a special move, but nothing happens.`;
+        }
+        logMessage(logText, 'spell', true, attacker.faction);
+        return skipNormalAttack;
+    }
+
     function attackUnit(attacker, target) {
         if (!attacker || !target || attacker.currentHp <= 0 || target.currentHp <= 0) {
             return false; // Attack failed
+        }
+        // Special move check
+        let skipNormalAttack = false;
+        if (attacker.specialMove && Math.random() < attacker.specialMove.chance) {
+            skipNormalAttack = performSpecialMove(attacker, target);
+        }
+        // Always advance the turn, even after a special move
+        if (skipNormalAttack) {
+            // If the special move killed the target, ensure the main loop continues
+            setTimeout(() => {
+                if (typeof processNextUnitAction === 'function') processNextUnitAction();
+            }, 500);
+            return true;
+        }
+
+        // Launch projectile for ranged units
+        if (attacker.range > 1) {
+            const fromTile = document.getElementById(`tile-${attacker.row}-${attacker.col}`);
+            const toTile = document.getElementById(`tile-${target.row}-${target.col}`);
+            let projType = 'arrow';
+            if (attacker.name === 'Wizard') projType = 'fire';
+            if (attacker.name === 'Shaman') projType = 'arrow';
+            if (attacker.name === 'Imp') projType = 'arrow';
+            if (attacker.name === 'Crossbowman') projType = 'arrow';
+            launchProjectile(fromTile, toTile, projType);
         }
 
         const damage = Math.max(1, attacker.attack - target.defense);
         const isCrit = Math.random() < 0.1; // 10% chance for critical hit
         const finalDamage = isCrit ? damage * 2 : damage;
-        
         if (attacker.name === "Wizard") {
             // Wizard's splash damage attack
             const affectedUnits = getUnitsInArea(target.row, target.col);
-            logMessage("The wizard's fireball explodes, engulfing the area in flame!", 'spell', true);
+            logMessage(fillTemplate(randomTemplate('spell'), { attacker: attacker.name }), 'spell', true, attacker.faction);
             logFlavorMessage('spell', attacker);
             
             // Create flame effect on all affected tiles
@@ -540,6 +745,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tile = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
                     if (tile) {
                         createFlameEffect(tile);
+                        // Pulse spell effect on units in area
+                        if (tile.dataset.unitOnTile) pulseUnit(tile.dataset.unitOnTile, 'unit-pulse-spell');
                     }
                 }
             }
@@ -554,9 +761,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     updateHealthBar(unit, unit.healthBar);
                 }
                 
-                const damageType = isMainTarget ? "full" : "splash";
-                const message = `${attacker.name} deals ${splashDamage} ${damageType} damage to ${unit.name} (${unit.id.substring(0,4)}). (${unit.currentHp} HP left)`;
-                await logMessage(message, isMainTarget ? 'spell' : 'normal', isMainTarget);
+                const msg = fillTemplate(randomTemplate(isMainTarget ? (isCrit ? 'crit' : 'attack') : 'attack'), {
+                    attacker: attacker.name,
+                    defender: unit.name,
+                    damage: splashDamage
+                });
+                await logMessage(msg, isMainTarget ? (isCrit ? 'crit' : 'spell') : 'attack', isMainTarget, attacker.faction);
                 
                 // Check for low health flavor message
                 if (unit.currentHp > 0 && unit.currentHp < unit.hp * 0.3) {
@@ -568,7 +778,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 flashElement(document.getElementById(unit.id), "wizard-flash");
                 
                 if (unit.currentHp <= 0) {
-                    await logMessage(`${unit.name} (${unit.id.substring(0,4)}) has been defeated!`, 'death', true);
+                    const deathMsg = fillTemplate(randomTemplate('death'), { defender: unit.name });
+                    await logMessage(deathMsg, 'death', true, unit.faction);
                     logFlavorMessage('death', unit);
                     removeUnit(unit);
                 }
@@ -582,8 +793,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateHealthBar(target, target.healthBar);
             }
             
-            const message = `${attacker.name} (${attacker.id.substring(0,4)}) attacks ${target.name} (${target.id.substring(0,4)}) for ${finalDamage} damage${isCrit ? ' (CRITICAL HIT!)' : ''}. (${target.currentHp} HP left)`;
-            return logMessage(message, isCrit ? 'crit' : 'normal', isCrit).then(() => {
+            const msg = fillTemplate(randomTemplate(isCrit ? 'crit' : 'attack'), {
+                attacker: attacker.name,
+                defender: target.name,
+                damage: finalDamage
+            });
+            return logMessage(msg, isCrit ? 'crit' : 'attack', isCrit, attacker.faction).then(() => {
                 flashElement(document.getElementById(attacker.id), "attack-flash");
                 flashElement(document.getElementById(target.id), "damage-flash");
                 
@@ -593,7 +808,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 
                 if (target.currentHp <= 0) {
-                    return logMessage(`${target.name} (${target.id.substring(0,4)}) has been defeated!`, 'death', true).then(() => {
+                    const deathMsg = fillTemplate(randomTemplate('death'), { defender: target.name });
+                    return logMessage(deathMsg, 'death', true, target.faction).then(() => {
                         logFlavorMessage('death', target);
                         removeUnit(target);
                         return true;
@@ -721,10 +937,10 @@ document.addEventListener("DOMContentLoaded", () => {
         let victory = false;
 
         if (!hordeUnitsAlive && crownUnitsAlive) {
-            message = "Victory for the Crown!";
+            message = "Victory!";
             victory = true;
         } else if (!crownUnitsAlive && hordeUnitsAlive) {
-            message = "Victory for the Horde!";
+            message = "Defeat!";
             victory = true;
         } else if (!crownUnitsAlive && !hordeUnitsAlive && turnNumber > 0) { // Only declare draw after turn 0
             message = "Mutual Annihilation!";
@@ -753,6 +969,46 @@ document.addEventListener("DOMContentLoaded", () => {
         startNewTurn();
     }
 
+    function setActiveUnit(unitId) {
+        // Remove .unit-active from all units
+        document.querySelectorAll('.unit').forEach(u => u.classList.remove('unit-active'));
+        // Add to the current unit
+        const el = document.getElementById(unitId);
+        if (el) el.classList.add('unit-active');
+    }
+
+    function pulseUnit(unitId, pulseClass) {
+        const el = document.getElementById(unitId);
+        if (el) {
+            el.classList.add(pulseClass);
+            setTimeout(() => el.classList.remove(pulseClass), 700);
+        }
+    }
+
+    function launchProjectile(fromTile, toTile, type) {
+        if (!fromTile || !toTile) return;
+        const boardRect = fromTile.parentElement.getBoundingClientRect();
+        const fromRect = fromTile.getBoundingClientRect();
+        const toRect = toTile.getBoundingClientRect();
+        const proj = document.createElement('div');
+        proj.className = 'projectile projectile-' + type;
+        // Position at center of fromTile
+        proj.style.left = (fromRect.left - boardRect.left + fromRect.width / 2 - 4) + 'px';
+        proj.style.top = (fromRect.top - boardRect.top + fromRect.height / 2 - 4) + 'px';
+        proj.style.position = 'absolute';
+        proj.style.transition = 'transform 0.3s linear';
+        fromTile.parentElement.appendChild(proj);
+        // Calculate translation
+        const dx = (toRect.left - fromRect.left) + (toRect.width - fromRect.width) / 2;
+        const dy = (toRect.top - fromRect.top) + (toRect.height - fromRect.height) / 2;
+        setTimeout(() => {
+            proj.style.transform = `translate(${dx}px, ${dy}px)`;
+        }, 10);
+        setTimeout(() => {
+            proj.remove();
+        }, 500);
+    }
+
     // --- Initialization ---
     if (startGameBtn) {
         console.log("Adding click listener to start button");
@@ -775,6 +1031,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     } else {
         console.error("Start button not found!");
+    }
+
+    // Show Panel button logic
+    const showPanelBtn = document.getElementById('show-panel-btn');
+    if (showPanelBtn) {
+        showPanelBtn.addEventListener('click', () => {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('hidden');
+                showPanelBtn.style.display = 'none';
+            }
+        });
     }
 });
 
