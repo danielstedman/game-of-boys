@@ -1,5 +1,9 @@
+import { UNITS, FACTIONS } from './units.js';
+
 // Make sure the DOM is fully loaded before initializing
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("DOM Content Loaded");
+    
     // Initialize game elements
     const welcomeScreen = document.getElementById("welcome-screen");
     const gameArea = document.getElementById("game-area");
@@ -9,6 +13,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const logArea = document.getElementById("log-area");
     const gameOverOverlay = document.getElementById("game-over-overlay");
     const gameOverMessage = document.getElementById("game-over-message");
+
+    console.log("Elements initialized:", {
+        welcomeScreen,
+        gameArea,
+        startGameBtn,
+        gameBoard,
+        controlsArea,
+        logArea,
+        gameOverOverlay,
+        gameOverMessage
+    });
 
     // Game constants
     const BOARD_SIZE = 16;
@@ -740,11 +755,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Initialization ---
     if (startGameBtn) {
+        console.log("Adding click listener to start button");
         startGameBtn.addEventListener("click", () => {
+            console.log("Start button clicked");
             if (welcomeScreen) {
+                console.log("Removing active class from welcome screen");
                 welcomeScreen.classList.remove("active");
             }
             if (gameArea) {
+                console.log("Adding active class to game area");
                 gameArea.classList.add("active");
                 playerPoints = 1000;
                 gameLog = [];
@@ -754,6 +773,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log("Game started! Player points: ", playerPoints);
             }
         });
+    } else {
+        console.error("Start button not found!");
     }
 });
 

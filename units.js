@@ -6,68 +6,68 @@ const UNITS = {
             name: "Militia", 
             symbol: "M", 
             cost: 50, 
-            hp: 10, 
-            attack: 3, 
-            defense: 1, 
+            hp: 30, 
+            attack: 5, 
+            defense: 2, 
             range: 1, 
             speed: 2 
         },
         archer: { 
             name: "Archer", 
             symbol: "A", 
-            cost: 100, 
-            hp: 8, 
-            attack: 4, 
-            defense: 0, 
-            range: 4, 
+            cost: 75, 
+            hp: 25, 
+            attack: 8, 
+            defense: 1, 
+            range: 3, 
             speed: 2 
         },
         knight: {
             name: "Knight",
             symbol: "K",
-            cost: 150,
-            hp: 12,
-            attack: 4,
-            defense: 3,
+            cost: 100,
+            hp: 40,
+            attack: 7,
+            defense: 4,
             range: 1,
-            speed: 4
+            speed: 3
         },
         wizard: { 
             name: "Wizard", 
             symbol: "W", 
-            cost: 250, 
-            hp: 6, 
-            attack: 6, 
-            defense: 0, 
-            range: 3, 
+            cost: 150, 
+            hp: 20, 
+            attack: 10, 
+            defense: 1, 
+            range: 2, 
             speed: 2 
         },
         paladin: {
             name: "Paladin",
             symbol: "P",
             cost: 200,
-            hp: 14,
-            attack: 5,
-            defense: 2,
+            hp: 50,
+            attack: 8,
+            defense: 5,
             range: 1,
-            speed: 3
+            speed: 2
         },
         crossbowman: {
             name: "Crossbowman",
-            symbol: "X",
-            cost: 120,
-            hp: 7,
-            attack: 5,
-            defense: 1,
+            symbol: "C",
+            cost: 125,
+            hp: 30,
+            attack: 9,
+            defense: 2,
             range: 3,
             speed: 2
         },
         cleric: {
             name: "Cleric",
-            symbol: "C",
-            cost: 180,
-            hp: 8,
-            attack: 3,
+            symbol: "H",
+            cost: 175,
+            hp: 25,
+            attack: 6,
             defense: 2,
             range: 2,
             speed: 2
@@ -75,12 +75,12 @@ const UNITS = {
         scout: {
             name: "Scout",
             symbol: "S",
-            cost: 80,
-            hp: 6,
-            attack: 2,
+            cost: 60,
+            hp: 20,
+            attack: 4,
             defense: 1,
             range: 1,
-            speed: 5
+            speed: 4
         }
     },
     
@@ -89,82 +89,82 @@ const UNITS = {
         orc: { 
             name: "Orc", 
             symbol: "O", 
-            cost: 0, 
-            hp: 12, 
-            attack: 4, 
-            defense: 2, 
+            cost: 60, 
+            hp: 35, 
+            attack: 6, 
+            defense: 3, 
             range: 1, 
             speed: 2 
         },
         goblin: { 
             name: "Goblin", 
-            symbol: "g", 
-            cost: 0, 
-            hp: 5, 
-            attack: 2, 
-            defense: 0, 
+            symbol: "G", 
+            cost: 40, 
+            hp: 20, 
+            attack: 4, 
+            defense: 1, 
             range: 1, 
-            speed: 5 
+            speed: 3 
         },
         troll: {
             name: "Troll",
             symbol: "T",
-            cost: 0,
-            hp: 15,
-            attack: 5,
-            defense: 3,
+            cost: 120,
+            hp: 45,
+            attack: 7,
+            defense: 4,
             range: 1,
-            speed: 1
+            speed: 2
         },
         shaman: {
             name: "Shaman",
             symbol: "S",
-            cost: 0,
-            hp: 7,
-            attack: 5,
-            defense: 0,
-            range: 3,
+            cost: 140,
+            hp: 25,
+            attack: 9,
+            defense: 1,
+            range: 2,
             speed: 2
         },
         berserker: {
             name: "Berserker",
             symbol: "B",
-            cost: 0,
-            hp: 10,
-            attack: 6,
-            defense: 1,
+            cost: 180,
+            hp: 40,
+            attack: 10,
+            defense: 2,
             range: 1,
-            speed: 4
+            speed: 3
         },
         wolfrider: {
             name: "Wolfrider",
             symbol: "W",
-            cost: 0,
-            hp: 8,
-            attack: 4,
-            defense: 1,
+            cost: 90,
+            hp: 30,
+            attack: 6,
+            defense: 2,
             range: 1,
-            speed: 5
+            speed: 4
         },
         ogre: {
             name: "Ogre",
-            symbol: "o",
-            cost: 0,
-            hp: 18,
-            attack: 7,
-            defense: 2,
+            symbol: "O",
+            cost: 160,
+            hp: 55,
+            attack: 8,
+            defense: 5,
             range: 1,
-            speed: 1
+            speed: 2
         },
         imp: {
             name: "Imp",
-            symbol: "i",
-            cost: 0,
-            hp: 4,
-            attack: 3,
-            defense: 0,
+            symbol: "I",
+            cost: 70,
+            hp: 15,
+            attack: 5,
+            defense: 1,
             range: 2,
-            speed: 4
+            speed: 3
         }
     }
 };
@@ -174,14 +174,13 @@ const FACTIONS = {
     crown: {
         name: "Crown",
         color: "#90caf9",
-        deploymentRows: 8
+        deploymentRows: 4
     },
     horde: {
         name: "Horde",
         color: "#ef9a9a",
-        deploymentRows: 8
+        deploymentRows: 4
     }
 };
 
-// Export the configurations
 export { UNITS, FACTIONS }; 
