@@ -59,6 +59,7 @@ const UNITS = {
             defense: 1, 
             range: 3, 
             speed: 1,
+            fly: true,
             specialMove: {
                 name: "Inferno Surge",
                 description: "3x3 AoE fire (10% chance)",
@@ -255,6 +256,7 @@ const UNITS = {
             defense: 1,
             range: 3,
             speed: 1,
+            fly: true,
             specialMove: {
                 name: "Trickster Blink",
                 description: "Randomly teleports 1 tile away when attacked (10% chance)",
