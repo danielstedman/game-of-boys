@@ -1,0 +1,996 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    background-color: #222; /* Dark gray background */
+    color: #eee; /* Light gray text */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* Removed overflow: hidden; to allow scrolling */
+}
+
+.screen {
+    display: none; /* Hide screens by default */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    /* Use min-height instead of height to allow content expansion */
+    min-height: 100vh; 
+    position: absolute; 
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex; /* Show the active screen */
+    position: relative; /* Change to relative when active to allow natural flow/scrolling */
+    width: 100%;
+    min-height: 100vh;
+}
+
+#welcome-screen {
+    background: linear-gradient(120deg, #23272b 0%, #18191c 100%);
+    animation: welcome-pulse 8s ease-in-out infinite;
+    transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1);
+    opacity: 1;
+}
+#welcome-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+@keyframes welcome-pulse {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; background-color: #23272b; }
+    100% { background-position: 0% 50%; }
+}
+.welcome-intro {
+    font-size: 1.2em;
+    color: #eee;
+    margin-bottom: 36px;
+    margin-top: 18px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 8px #111;
+    text-align: center;
+}
+#start-game-btn {
+    width: 180px;
+    height: 54px;
+    font-size: 1.2em;
+    background: linear-gradient(90deg, #fff 0%, #bbb 100%);
+    color: #23272b;
+    border: 2px solid #888;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+#start-game-btn:hover {
+    background: #fffbe7;
+    color: #111;
+    box-shadow: 0 4px 18px rgba(255,255,255,0.08);
+}
+
+/* --- Game Area Layout --- */
+#game-area {
+    flex-direction: column; /* Default: Stack board, controls, log vertically for mobile */
+    justify-content: flex-start;
+    align-items: center;
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* Desktop Layout */
+@media (min-width: 1024px) {
+    #game-area {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    #game-board-container {
+        margin: 0;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    #log-area {
+        width: 90vmin;
+        max-width: 500px;
+        margin: 10px auto 0 auto;
+        padding: 10px;
+        background-color: #1a1a1a;
+        border: 1px solid #444;
+        min-height: 80px;
+        max-height: 300px;
+        color: #ccc;
+        font-size: 0.9em;
+        overflow-y: auto;
+        text-align: left;
+        box-sizing: border-box;
+        border-radius: 4px;
+        flex-shrink: 0;
+        order: 2;
+    }
+
+    .sidebar {
+        width: 300px;
+        min-width: 220px;
+        max-width: 340px;
+        margin-right: 16px;
+        height: auto;
+        background: none;
+        box-shadow: none;
+        position: static;
+        transition: width 0.2s, margin 0.2s;
+        flex-shrink: 0;
+        display: block;
+    }
+
+    #controls-area {
+        width: 100%;
+        margin: 0;
+        flex-shrink: 0;
+        height: auto;
+        max-height: none;
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+#game-board-container {
+    width: 90vmin; /* Use viewport minimum dimension for scaling */
+    max-width: 500px; /* Max size on larger screens */
+    height: 90vmin;
+    max-height: 500px;
+    margin: 10px auto; /* Center the board */
+    position: relative; /* For overlay */
+    flex-shrink: 0; /* Prevent board from shrinking */
+}
+
+#game-board {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    grid-template-rows: repeat(16, 1fr);
+    width: 100%;
+    height: 100%;
+    border: 2px solid #888; /* Outer border for the board */
+    box-sizing: border-box;
+}
+
+.tile {
+    background-color: #fff; /* White tile */
+    border: 1px solid #ccc; /* Thin gray border */
+    box-sizing: border-box; /* Include border in size */
+    position: relative; /* For positioning units/text */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.6em; /* Small font size for terrain letters */
+    color: #555;
+}
+
+/* Controls and Log Area (Mobile First) */
+#controls-area {
+    width: 90%;
+    max-width: 500px;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: #333;
+    border: 1px solid #555;
+    box-sizing: border-box;
+    border-radius: 4px;
+    flex-shrink: 0; /* Prevent controls from shrinking */
+}
+
+#log-area {
+    width: 90%;
+    max-width: 500px;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: #1a1a1a; /* Very dark gray background */
+    border: 1px solid #444;
+    min-height: 80px; 
+    max-height: 150px; /* Limit height */
+    color: #ccc; /* Light gray text */
+    font-size: 0.9em;
+    overflow-y: auto; /* Allow scrolling within log area */
+    text-align: left; 
+    box-sizing: border-box; 
+    border-radius: 4px;
+    flex-shrink: 0; /* Prevent log area from shrinking */
+}
+
+#log-area p {
+    margin: 3px 0;
+    padding: 0;
+    line-height: 1.3;
+    color: #eee;
+    opacity: 0.85;
+}
+
+#log-area p:nth-last-child(-n+3) {
+    opacity: 1;
+}
+
+/* Game Log Faction Colors */
+.log-crown {
+    color: #b3e5fc; /* Light blue */
+}
+.log-horde {
+    color: #ffb199; /* Light orange/red */
+}
+
+/* Important event styling */
+.log-important {
+    font-weight: bold;
+    font-style: italic;
+    animation: log-flash 0.7s;
+}
+
+@keyframes log-flash {
+    0% { background-color: #fffbe7; }
+    50% { background-color: #ffe082; }
+    100% { background-color: transparent; }
+}
+
+.log-message-important {
+    text-align: center;
+    font-weight: bold;
+    border-top: 1px solid #555;
+    margin-top: 10px;
+    padding-top: 5px;
+    color: #fff;
+}
+
+.log-message-death::before {
+    content: "☠️ ";
+}
+
+.log-message-spell::before {
+    content: "🔥 ";
+}
+
+.log-message-crit::before {
+    content: "⚡ ";
+}
+
+/* Subtle Terrain Styles */
+.tile.terrain-grass {
+    background: linear-gradient(135deg, #f3fbe9 70%, #c8e6c9 100%);
+    border: 1px solid #c8e6c9;
+}
+.tile.terrain-forest {
+    background: radial-gradient(circle at 60% 40%, #a5d6a7 60%, #e0f2f1 100%);
+    border: 1px solid #81c784;
+}
+.tile.terrain-sand {
+    background: repeating-linear-gradient(135deg, #fdf6e3, #e0c69c 10px, #fdf6e3 20px);
+    border: 1px solid #e0c69c;
+}
+.tile.terrain-water {
+    background: linear-gradient(90deg, #e3f2fd 0%, #b3e5fc 50%, #e3f2fd 100%);
+    background-size: 100% 16px;
+    border: 1px solid #b3e5fc;
+}
+.tile.terrain-mountain {
+    background: linear-gradient(135deg, #e0e0e0 40%, #bdbdbd 60%, #f5f5f5 100%);
+    border: 1px solid #bdbdbd;
+}
+.tile.terrain-swamp {
+    background: linear-gradient(135deg, #c8b7a6 40%, #b0bfa3 60%, #d7ccc8 100%);
+    border: 1px solid #a1887f;
+}
+
+/* Unit Placement Styles */
+.tile .terrain-letter {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 0.8em;
+    color: #aaa; /* Make terrain letter less prominent */
+    z-index: 1; /* Ensure it's below units */
+}
+
+.unit {
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    border-radius: 18px; /* More rounded corners */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 2px rgba(0,0,0,0.04);
+    cursor: default;
+    user-select: none;
+    transition: box-shadow 0.2s, border 0.2s, background 0.2s;
+}
+
+.unit-health-container {
+    position: absolute;
+    bottom: -8px; /* Reduced from -15px to move closer to unit */
+    left: 0;
+    width: 100%;
+    height: 4px; /* Slightly reduced height for better proportion */
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.unit-health-bar {
+    height: 100%;
+    width: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.unit-health-bar.high {
+    background-color: #4CAF50; /* Green */
+}
+
+.unit-health-bar.medium {
+    background-color: #FFC107; /* Yellow */
+}
+
+.unit-health-bar.low {
+    background-color: #F44336; /* Red */
+}
+
+.crown-unit {
+    background: linear-gradient(135deg, #e3f2fd 60%, #b3e5fc 100%);
+    color: #222;
+    border: 2px solid #90caf9;
+}
+
+.horde-unit {
+    background: linear-gradient(135deg, #ffebee 60%, #ffb199 100%);
+    color: #222;
+    border: 2px solid #ef9a9a;
+}
+
+.deployment-zone {
+    box-shadow: inset 0 0 0 1px #bbb; /* Inner border */
+}
+
+/* Unit Selection Styles */
+#unit-selection-menu {
+    display: flex;
+    flex-direction: column;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    gap: 5px;
+}
+
+.unit-select-btn {
+    padding: 12px 15px;
+    font-size: 0.9em;
+    background-color: #555;
+    color: #eee;
+    border: 1px solid #777;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    width: 100%;
+    text-align: left;
+    line-height: 1.3;
+    border-radius: 4px;
+}
+
+.unit-select-btn:hover {
+    background-color: #666;
+    border-color: #888;
+}
+
+.unit-select-btn.selected {
+    background-color: #eee;
+    color: #333;
+    border: 2px solid #fff;
+    font-weight: bold;
+}
+
+/* Unit Stats Display Styles */
+#unit-stats-display {
+    margin-top: 15px; /* Space above the stats box */
+    padding: 10px;
+    background-color: #2a2a2a; /* Slightly darker than controls background */
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ddd; /* Light gray text */
+    font-size: 0.9em;
+    line-height: 1.4;
+    min-height: 60px; /* Ensure it has some height even when empty */
+    text-align: left; /* Align text to the left */
+}
+
+#unit-stats-display strong {
+    color: #fff; /* White color for unit name */
+    font-size: 1.1em;
+}
+
+/* Points Display Styles */
+#points-display {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff; /* White text */
+    background-color: #444; /* Darker gray background */
+    padding: 8px 12px;
+    margin-bottom: 10px; /* Space below points */
+    border-radius: 4px;
+    text-align: center;
+    transition: color 0.3s; /* Smooth transition for error state */
+}
+
+#points-display.error {
+    color: #ff6666; /* Reddish color for error */
+}
+
+/* Start Battle Button Styles */
+#start-battle-btn {
+    display: block; /* Make it take full width available in controls */
+    width: 80%;
+    max-width: 300px; /* Limit width on larger screens */
+    margin: 20px auto 10px auto; /* Center it with some margin */
+    padding: 12px 20px;
+    font-size: 1.3em;
+    font-weight: bold;
+    background-color: #eee; /* Light gray */
+    color: #333; /* Dark text */
+    border: 2px solid #888;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#start-battle-btn:hover {
+    background-color: #ccc;
+}
+
+#start-battle-btn:active {
+    background-color: #aaa;
+}
+
+#start-battle-btn:disabled {
+    background-color: #555; /* Darker gray when disabled */
+    color: #999; /* Lighter text when disabled */
+    cursor: not-allowed;
+    border-color: #666;
+}
+
+/* Game Over Overlay Styles */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 10; /* Ensure it's above the board */
+}
+
+.overlay.active {
+    display: flex; /* Show when active */
+}
+
+#game-over-message {
+    color: #fff; /* White text */
+    font-size: 2em;
+    padding: 20px;
+    background-color: #333; /* Dark gray background for message */
+    border: 2px solid #888;
+    border-radius: 10px;
+}
+
+/* Visual Effects Styles */
+@keyframes flash-attack {
+    0%, 100% { outline: none; }
+    50% { outline: 3px solid #fff; } /* White outline for attacker */
+}
+
+@keyframes flash-damage {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; } /* Briefly fade attacked unit */
+}
+
+@keyframes flash-wizard {
+    0% { background-color: rgba(255, 0, 0, 0.3); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flash-splash-damage {
+    0% { background-color: rgba(255, 0, 0, 0.2); }
+    50% { background-color: rgba(255, 0, 0, 0.4); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flame {
+    0% { 
+        background-color: rgba(255, 100, 0, 0.3);
+        box-shadow: 0 0 10px 5px rgba(255, 100, 0, 0.3);
+    }
+    50% { 
+        background-color: rgba(255, 200, 0, 0.5);
+        box-shadow: 0 0 20px 10px rgba(255, 200, 0, 0.5);
+    }
+    100% { 
+        background-color: rgba(255, 100, 0, 0.3);
+        box-shadow: 0 0 10px 5px rgba(255, 100, 0, 0.3);
+    }
+}
+
+@keyframes flame-particles {
+    0% { 
+        transform: translateY(0) scale(1);
+        opacity: 0.8;
+    }
+    100% { 
+        transform: translateY(-20px) scale(0.5);
+        opacity: 0;
+    }
+}
+
+.attack-flash {
+    animation: flash-attack 0.3s ease-in-out;
+}
+
+.damage-flash {
+    animation: flash-damage 0.3s ease-in-out;
+}
+
+.wizard-flash {
+    animation: flash-wizard 0.5s ease-in-out;
+}
+
+.splash-damage-flash {
+    animation: flash-splash-damage 0.5s ease-in-out;
+}
+
+.wizard-flame {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    animation: flame 0.5s ease-in-out;
+    pointer-events: none;
+}
+
+.wizard-flame-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: radial-gradient(circle, rgba(255,200,0,1) 0%, rgba(255,100,0,0) 70%);
+    border-radius: 50%;
+    animation: flame-particles 0.5s ease-out forwards;
+    pointer-events: none;
+}
+
+/* Sidebar hide/show transitions */
+.sidebar {
+    transition: transform 0.3s, opacity 0.3s;
+}
+.sidebar.hidden {
+    transform: translateX(120%);
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+}
+
+#show-panel-btn {
+    display: none;
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 100;
+    padding: 12px 20px;
+    font-size: 1.1em;
+    background: #444;
+    color: #fff;
+    border: 2px solid #888;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    opacity: 0.95;
+}
+#show-panel-btn:active, #show-panel-btn:focus {
+    background: #222;
+    outline: none;
+}
+
+@media (min-width: 1024px) {
+    #show-panel-btn {
+        right: 40px;
+        bottom: 40px;
+        font-size: 1.2em;
+    }
+    .sidebar.hidden {
+        position: static;
+    }
+}
+
+/* Flash Animations for Important Log Events */
+.log-flash-death {
+    animation: log-flash-death 0.7s;
+}
+@keyframes log-flash-death {
+    0% { background-color: #ffebee; }
+    50% { background-color: #ffb199; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-crit {
+    animation: log-flash-crit 0.7s;
+}
+@keyframes log-flash-crit {
+    0% { background-color: #fffde7; }
+    50% { background-color: #ffe082; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-spell {
+    animation: log-flash-spell 0.7s;
+}
+@keyframes log-flash-spell {
+    0% { background-color: #e3f2fd; }
+    50% { background-color: #b3e5fc; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-victory {
+    animation: log-flash-victory 0.7s;
+}
+@keyframes log-flash-victory {
+    0% { background-color: #e8f5e9; }
+    50% { background-color: #a5d6a7; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-defeat {
+    animation: log-flash-defeat 0.7s;
+}
+@keyframes log-flash-defeat {
+    0% { background-color: #ffebee; }
+    50% { background-color: #ef9a9a; }
+    100% { background-color: transparent; }
+}
+
+.log-flash-important {
+    animation: log-flash-important 0.7s;
+}
+@keyframes log-flash-important {
+    0% { background-color: #fffbe7; }
+    50% { background-color: #ffe082; }
+    100% { background-color: transparent; }
+}
+
+/* Unit Enhancements */
+.unit {
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    border-radius: 18px; /* More rounded corners */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 2px rgba(0,0,0,0.04);
+    cursor: default;
+    user-select: none;
+    transition: box-shadow 0.2s, border 0.2s, background 0.2s;
+}
+
+.unit.unit-active {
+    box-shadow: 0 0 16px 4px #fff176, 0 2px 8px rgba(0,0,0,0.18);
+    border: 2.5px solid #fffde7;
+    z-index: 3;
+}
+
+.unit.unit-pulse-spell {
+    animation: unit-pulse-spell 0.7s;
+}
+@keyframes unit-pulse-spell {
+    0% { box-shadow: 0 0 0 0 #b3e5fc; }
+    50% { box-shadow: 0 0 24px 8px #b3e5fc; }
+    100% { box-shadow: 0 0 0 0 #b3e5fc; }
+}
+
+.unit.unit-pulse-crit {
+    animation: unit-pulse-crit 0.7s;
+}
+@keyframes unit-pulse-crit {
+    0% { box-shadow: 0 0 0 0 #ffe082; }
+    50% { box-shadow: 0 0 24px 8px #ffe082; }
+    100% { box-shadow: 0 0 0 0 #ffe082; }
+}
+
+/* Special Move Visual Effects */
+.flash-fire {
+  background-color: #ff7043 !important;
+  box-shadow: 0 0 12px 6px #ff5722;
+}
+.flash-heal {
+  background-color: #a5d6a7 !important;
+  box-shadow: 0 0 10px 5px #81c784;
+}
+.flash-stun {
+  background-color: #90caf9 !important;
+  box-shadow: 0 0 8px 4px #42a5f5;
+}
+.flash-boost {
+  background-color: #fdd835 !important;
+  box-shadow: 0 0 6px 3px #ffee58;
+}
+.flash-teleport {
+  background-color: #ce93d8 !important;
+  box-shadow: 0 0 10px 6px #ba68c8;
+}
+
+/* Projectile Animation */
+.projectile {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  z-index: 100;
+  pointer-events: none;
+  transition: transform 0.1s linear; /* Faster animation (0.1s instead of 0.15s) */
+}
+.projectile-arrow {
+  background-color: #000;
+  width: 2px; /* Thinner arrow */
+  height: 2px; /* Thinner arrow */
+  border-radius: 0; /* Remove rounded corners for arrow */
+  box-shadow: 0 0 2px 1px rgba(0,0,0,0.5); /* Add subtle shadow for visibility */
+}
+.projectile-fire {
+  background-color: red;
+  box-shadow: 0 0 4px orange;
+}
+
+/* Unit Status Panel Styles */
+@media (min-width: 1024px) {
+  #log-area {
+    width: 90vmin;
+    max-width: 500px;
+    margin: 10px auto 0 auto;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    min-height: 80px;
+    max-height: 300px;
+    color: #ccc;
+    font-size: 0.9em;
+    overflow-y: auto;
+    text-align: left;
+    box-sizing: border-box;
+    border-radius: 4px;
+    flex-shrink: 0;
+    order: 2;
+  }
+  #unit-status-panel {
+    width: 90vmin;
+    max-width: 500px;
+    margin: 16px auto 0 auto;
+    background: #23272b;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 16px 14px 16px 14px;
+    z-index: 20;
+    font-size: 1em;
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    display: block;
+    height: auto;
+    position: static;
+  }
+  .unit-status-entry {
+    margin-bottom: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #444;
+    font-size: 1em;
+    word-break: break-word;
+  }
+  .sidebar {
+    width: 300px;
+    min-width: 220px;
+    max-width: 340px;
+    margin-right: 16px;
+    height: auto;
+    background: none;
+    box-shadow: none;
+    position: static;
+    transition: width 0.2s, margin 0.2s;
+    flex-shrink: 0;
+    display: block;
+  }
+  .sidebar.hidden {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Panel Toggle Button Styles */
+.panel-toggle-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 10;
+  background: #444;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 1.2em;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panel-toggle-btn:hover {
+  background: #222;
+  color: #ffe082;
+}
+
+/* Collapsed panel content (except toggle button) */
+#unit-status-panel.collapsed > :not(.panel-toggle-btn),
+#controls-area.collapsed > :not(.panel-toggle-btn),
+#log-area.collapsed > :not(.panel-toggle-btn) {
+  display: none !important;
+}
+
+@media (max-width: 600px) {
+  .panel-toggle-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 1em;
+    top: 3px;
+    right: 4px;
+  }
+}
+
+.status-healthy {
+  color: #43a047;
+  font-weight: bold;
+}
+.status-wounded {
+  color: #fbc02d;
+  font-weight: bold;
+}
+.status-critical {
+  color: #d32f2f;
+  font-weight: bold;
+}
+.afflictions {
+  color: #ff7043;
+  font-weight: bold;
+  margin-left: 6px;
+}
+.bonuses {
+  color: #43a047;
+  font-weight: bold;
+  margin-left: 6px;
+}
+.in-action {
+  color: #1976d2;
+  font-style: italic;
+  margin-left: 6px;
+}
+.unit-status-row.highlighted {
+  background: #ffe082 !important;
+  animation: unit-status-flash 0.7s;
+}
+@media (max-width: 600px) {
+  #unit-status-panel {
+    font-size: 0.92em;
+    padding: 5px 2px;
+    max-height: 120px;
+  }
+  .unit-status-row {
+    padding: 4px 2px;
+  }
+}
+
+.hero-glow {
+  box-shadow: 0 0 16px 4px #ffd700, 0 2px 8px rgba(0,0,0,0.18) !important;
+  border: 2.5px solid #ffe082 !important;
+  position: relative;
+  z-index: 3;
+}
+.hero-star {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 1.2em;
+  color: #ffd700;
+  text-shadow: 0 0 6px #fff176, 0 0 2px #fff;
+  pointer-events: none;
+}
+
+#mode-select-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+  margin-top: 32px;
+}
+#mode-select-btns button {
+  width: 220px;
+  height: 56px;
+  font-size: 1.25em;
+  background: linear-gradient(90deg, #fff 0%, #bbb 100%);
+  color: #23272b;
+  border: 2px solid #888;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  margin-bottom: 0;
+}
+#mode-select-btns button:hover {
+  background: #fffbe7;
+  color: #111;
+  box-shadow: 0 4px 18px rgba(255,255,255,0.08);
+}
+#deployment-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(30,30,30,0.92);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  font-size: 1.3em;
+  padding: 40px 20px;
+  font-family: inherit;
+}
+#deployment-modal button {
+  margin-top: 32px;
+  width: 200px;
+  height: 48px;
+  font-size: 1.1em;
+  border-radius: 8px;
+  border: 2px solid #888;
+  background: #fff;
+  color: #23272b;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+#deployment-modal button:hover {
+  background: #ffe082;
+  color: #111;
+}
+
