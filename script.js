@@ -105,6 +105,172 @@ document.addEventListener("DOMContentLoaded", () => {
         ]
     };
 
+    // --- Game State for Mode Selection ---
+    const gameState = {
+        mode: 'single', // or 'two-player'
+        deploymentPhase: null // 'crown', 'horde', or null
+    };
+
+    // --- Two-Player Deployment Flow ---
+    let hordePoints = 1000;
+    let hordeDeployedUnits = {};
+    function setupTwoPlayerDeployment() {
+        // Player 1: Crown deployment
+        playerPoints = 1000;
+        gameState.deploymentPhase = 'crown';
+        updatePointsDisplay();
+        showDeploymentModal('Player 1: Deploy your army (Crown)', true, 'OK');
+        // Add 'Done Deploying' button
+        const controlsArea = document.getElementById('controls-area');
+        if (controlsArea && !document.getElementById('done-deploy-btn')) {
+            const doneBtn = document.createElement('button');
+            doneBtn.id = 'done-deploy-btn';
+            doneBtn.textContent = 'Done Deploying';
+            doneBtn.style.marginTop = '18px';
+            doneBtn.style.width = '100%';
+            doneBtn.style.fontSize = '1.1em';
+            doneBtn.onclick = () => {
+                // Hide Crown units visually
+                Object.values(placedUnits).forEach(u => {
+                    if (u.faction === 'crown') {
+                        const el = document.getElementById(u.id);
+                        if (el) el.style.visibility = 'hidden';
+                    }
+                });
+                controlsArea.innerHTML = '';
+                showDeploymentModal("Pass the device to Player 2 (Horde). Crown's forces are hidden.", true, "Begin Horde Deployment", () => {
+                    // Start Horde deployment (manual for two-player, auto for single)
+                    if (gameState.mode === 'single') {
+                        generateHordeDeployment();
+                        startBattle();
+                    } else if (gameState.mode === 'two-player') {
+                        startHordeDeployment();
+                    }
+                });
+            };
+            controlsArea.appendChild(doneBtn);
+        }
+    }
+    function startHordeDeployment() {
+        // Reset points and allow Horde deployment
+        hordePoints = 1000;
+        gameState.deploymentPhase = 'horde';
+        updatePointsDisplayHorde();
+        // Remove all Crown units from the board visually
+        Object.values(placedUnits).forEach(u => {
+            if (u.faction === 'crown') {
+                const el = document.getElementById(u.id);
+                if (el) el.style.visibility = 'hidden';
+            }
+        });
+        // Show Horde deployment message
+        showDeploymentModal('Player 2: Deploy your army (Horde)', true, 'OK', () => {
+            createControls();
+            // Rebind all tile click events for Horde deployment
+            document.querySelectorAll('.tile').forEach(tile => {
+                tile.removeEventListener('click', handleTileClick);
+                tile.addEventListener('click', twoPlayerHandleTileClick);
+            });
+            // Set default selected unit type for Horde
+            selectedUnitType = Object.keys(UNITS.horde)[0];
+            const defaultUnitBtn = document.querySelector(`.unit-select-btn[data-unit-id="${selectedUnitType}"]`);
+            if (defaultUnitBtn) defaultUnitBtn.click();
+        });
+        // Add 'Start Battle' button
+        const controlsArea = document.getElementById('controls-area');
+        if (controlsArea) {
+            controlsArea.innerHTML = '';
+            const startBtn = document.createElement('button');
+            startBtn.id = 'start-battle-btn';
+            startBtn.textContent = 'Start Battle';
+            startBtn.style.marginTop = '18px';
+            startBtn.style.width = '100%';
+            startBtn.style.fontSize = '1.1em';
+            startBtn.onclick = () => {
+                // Reveal all units
+                Object.values(placedUnits).forEach(u => {
+                    const el = document.getElementById(u.id);
+                    if (el) el.style.visibility = '';
+                });
+                controlsArea.innerHTML = '';
+                hideDeploymentModal();
+                // Start the battle
+                startBattle();
+            };
+            controlsArea.appendChild(startBtn);
+        }
+    }
+    function updatePointsDisplayHorde() {
+        if (pointsDisplay) {
+            pointsDisplay.textContent = `Horde Points: ${hordePoints}`;
+        }
+    }
+    // Patch: On two-player mode, override deployment logic
+    const originalHandleTileClick = handleTileClick;
+    function twoPlayerHandleTileClick(event) {
+        const tile = event.currentTarget;
+        const row = parseInt(tile.dataset.row);
+        const col = parseInt(tile.dataset.col);
+        if (gameState.deploymentPhase === 'crown' && row < 8) return; // Only bottom half
+        if (gameState.deploymentPhase === 'horde' && row > 3) return; // Only top four rows (0,1,2,3)
+        if (gameState.deploymentPhase === 'crown') {
+            originalHandleTileClick(event);
+        } else if (gameState.deploymentPhase === 'horde') {
+            // Place Horde units
+            if (!selectedUnitType) return;
+            const unitToPlace = UNITS.horde[selectedUnitType];
+            if (hordePoints >= unitToPlace.cost && !tile.dataset.unitOnTile) {
+                hordePoints -= unitToPlace.cost;
+                updatePointsDisplayHorde();
+                const unitElement = document.createElement("div");
+                unitElement.classList.add("unit", `unit-${selectedUnitType}`, "horde-unit");
+                unitElement.textContent = unitToPlace.symbol;
+                unitElement.dataset.unitId = selectedUnitType;
+                // Create health bar for the new unit
+                const healthBar = createHealthBar(unitElement, unitToPlace.hp);
+                tile.appendChild(unitElement);
+                const unitId = `horde-${selectedUnitType}-${Date.now()}-${Math.random()}`;
+                placedUnits[unitId] = {
+                    ...unitToPlace,
+                    row: row,
+                    col: col,
+                    faction: "horde",
+                    currentHp: unitToPlace.hp,
+                    id: unitId,
+                    healthBar: healthBar
+                };
+                ensureUnitStats(placedUnits[unitId]);
+                tile.dataset.unitOnTile = unitId;
+                unitElement.id = unitId;
+            }
+        }
+    }
+    // Patch: On createGameBoard, set up two-player deployment if needed
+    const originalCreateGameBoard = createGameBoard;
+    createGameBoard = function() {
+        originalCreateGameBoard.apply(this, arguments);
+        if (gameState.mode === 'two-player') {
+            setupTwoPlayerDeployment();
+            // Override tile click
+            document.querySelectorAll('.tile').forEach(tile => {
+                tile.removeEventListener('click', handleTileClick);
+                tile.addEventListener('click', twoPlayerHandleTileClick);
+            });
+        }
+    };
+    // Patch: On createControls, show correct points for each phase
+    const originalCreateControls = createControls;
+    createControls = function() {
+        originalCreateControls.apply(this, arguments);
+        if (gameState.mode === 'two-player') {
+            if (gameState.deploymentPhase === 'horde') {
+                updatePointsDisplayHorde();
+            } else {
+                updatePointsDisplay();
+            }
+        }
+    };
+
     function randomTemplate(type) {
         const arr = LOG_TEMPLATES[type];
         if (!arr) return null;
@@ -289,12 +455,12 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Game board created with terrain blobs and placement listeners.");
     }
 
-    function displayUnitStats(unitId) {
-        if (!unitStatsDisplay || !unitId || !UNITS.crown[unitId]) {
+    function displayUnitStats(unitId, unitsObj = UNITS.crown) {
+        if (!unitStatsDisplay || !unitId || !unitsObj[unitId]) {
             if (unitStatsDisplay) unitStatsDisplay.innerHTML = "Select a unit to see stats.";
             return;
         }
-        const unit = UNITS.crown[unitId];
+        const unit = unitsObj[unitId];
         unitStatsDisplay.innerHTML = `
             <strong>${unit.name} (${unit.symbol})</strong><br>
             Cost: ${unit.cost}<br>
@@ -320,13 +486,22 @@ document.addEventListener("DOMContentLoaded", () => {
         // Show status panel
         const unitStatusPanel = document.getElementById('unit-status-panel');
         if (unitStatusPanel) unitStatusPanel.style.display = '';
+        // --- Ensure all units are visible on the grid in two-player mode ---
+        if (gameState.mode === 'two-player') {
+            Object.values(placedUnits).forEach(u => {
+                const el = document.getElementById(u.id);
+                if (el) el.style.visibility = '';
+            });
+        }
         updateUnitStatusPanel();
-        generateEnemyUnits();
+        if (gameState.mode === 'single') {
+            generateHordeDeployment();
+        }
         runBattleSimulation(); // Start the simulation loop
         setPanelDefaults('battle');
     }
 
-    function generateEnemyUnits() {
+    function generateHordeDeployment() {
         console.log("Generating enemy units...");
         const numberOfEnemies = 10; // Example
         let enemiesPlaced = 0;
@@ -449,12 +624,21 @@ document.addEventListener("DOMContentLoaded", () => {
         pointsDisplay = document.createElement("div");
         pointsDisplay.id = "points-display";
         controlsArea.appendChild(pointsDisplay);
-        updatePointsDisplay();
+        if (gameState.mode === 'two-player' && gameState.deploymentPhase === 'horde') {
+            updatePointsDisplayHorde();
+        } else {
+            updatePointsDisplay();
+        }
 
         const unitList = document.createElement("div");
         unitList.id = "unit-selection-menu";
-        for (const unitId in UNITS.crown) {
-            const unit = UNITS.crown[unitId];
+        // Show correct units for current deployment phase
+        let unitsToShow = UNITS.crown;
+        if (gameState.mode === 'two-player' && gameState.deploymentPhase === 'horde') {
+            unitsToShow = UNITS.horde;
+        }
+        for (const unitId in unitsToShow) {
+            const unit = unitsToShow[unitId];
             const unitButton = document.createElement("button");
             unitButton.classList.add("unit-select-btn");
             unitButton.dataset.unitId = unitId;
@@ -467,8 +651,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 unitButton.classList.add("selected");
                 selectedUnitType = unitId;
-                console.log(`Selected unit: ${unit.name}`);
-                displayUnitStats(unitId);
+                displayUnitStats(unitId, unitsToShow); // Pass correct units
             });
             unitList.appendChild(unitButton);
         }
@@ -1090,21 +1273,47 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- Simple Unit Status Panel for Crown Units ---
+    // --- Simple Unit Status Panel for Crown and Horde Units in 2-Player Mode ---
     function updateUnitStatusPanel() {
         const panel = document.getElementById('unit-status-panel');
         if (!panel) return;
-        const crownUnits = Object.values(placedUnits).filter(u => u.faction === 'crown' && u.currentHp > 0);
-        if (crownUnits.length === 0) {
-            panel.innerHTML = '<div style="color:#bbb; text-align:center;">No units alive.</div>';
-            return;
+        if (gameState.mode === 'two-player') {
+            const crownUnits = Object.values(placedUnits).filter(u => u.faction === 'crown' && u.currentHp > 0);
+            const hordeUnits = Object.values(placedUnits).filter(u => u.faction === 'horde' && u.currentHp > 0);
+            if (crownUnits.length === 0 && hordeUnits.length === 0) {
+                panel.innerHTML = '<div style="color:#bbb; text-align:center;">No units alive.</div>';
+                return;
+            }
+            panel.innerHTML = `
+                <div><strong>Crown Units</strong></div>
+                ${crownUnits.map(unit => `
+                    <div class="unit-status-entry">
+                        <strong>${unit.name}</strong> (${unit.symbol})<br>
+                        <span>${unit.currentHp} / ${unit.hp} HP</span>
+                    </div>
+                `).join('')}
+                <div style="margin-top:10px;"><strong>Horde Units</strong></div>
+                ${hordeUnits.map(unit => `
+                    <div class="unit-status-entry">
+                        <strong>${unit.name}</strong> (${unit.symbol})<br>
+                        <span>${unit.currentHp} / ${unit.hp} HP</span>
+                    </div>
+                `).join('')}
+            `;
+        } else {
+            // Single player: show only Crown units
+            const crownUnits = Object.values(placedUnits).filter(u => u.faction === 'crown' && u.currentHp > 0);
+            if (crownUnits.length === 0) {
+                panel.innerHTML = '<div style="color:#bbb; text-align:center;">No units alive.</div>';
+                return;
+            }
+            panel.innerHTML = crownUnits.map(unit => `
+                <div class="unit-status-entry">
+                    <strong>${unit.name}</strong> (${unit.symbol})<br>
+                    <span>${unit.currentHp} / ${unit.hp} HP</span>
+                </div>
+            `).join('');
         }
-        panel.innerHTML = crownUnits.map(unit => `
-            <div class="unit-status-entry">
-                <strong>${unit.name}</strong> (${unit.symbol})<br>
-                <span>${unit.currentHp} / ${unit.hp} HP</span>
-            </div>
-        `).join('');
     }
 
     // --- Panel Toggle Logic ---
@@ -1209,5 +1418,78 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     // Patch: In startNewTurn, after incrementing turnsSurvived, call checkHeroPromotion
     // Patch: In logMessage, use heroNameOr(unit) for unit names
+
+    // Welcome screen mode selection logic
+    const singlePlayerBtn = document.getElementById('single-player-btn');
+    const twoPlayerBtn = document.getElementById('two-player-btn');
+
+    if (singlePlayerBtn) {
+        singlePlayerBtn.addEventListener('click', () => {
+            console.log('Single player mode selected');
+            gameState.mode = 'single';
+            if (welcomeScreen) {
+                welcomeScreen.classList.add("fade-out");
+                setTimeout(() => {
+                    welcomeScreen.classList.remove("active");
+                    welcomeScreen.style.display = "none";
+                }, 700);
+            }
+            if (gameArea) {
+                gameArea.classList.add("active");
+                playerPoints = 1000;
+                gameLog = [];
+                if(logArea) logArea.innerHTML = "";
+                createGameBoard();
+                createControls();
+            }
+        });
+    }
+
+    if (twoPlayerBtn) {
+        twoPlayerBtn.addEventListener('click', () => {
+            console.log('Two player mode selected');
+            gameState.mode = 'two-player';
+            if (welcomeScreen) {
+                welcomeScreen.classList.add("fade-out");
+                setTimeout(() => {
+                    welcomeScreen.classList.remove("active");
+                    welcomeScreen.style.display = "none";
+                }, 700);
+            }
+            if (gameArea) {
+                gameArea.classList.add("active");
+                playerPoints = 1000;
+                gameLog = [];
+                if(logArea) logArea.innerHTML = "";
+                createGameBoard();
+                createControls();
+                setupTwoPlayerDeployment();
+            }
+        });
+    }
+
+    // --- Deployment Modal Logic ---
+    function showDeploymentModal(message, showButton = true, buttonText = 'OK', onClick = null) {
+        const modal = document.getElementById('deployment-modal');
+        if (!modal) return;
+        modal.innerHTML = `<div>${message}</div>`;
+        if (showButton) {
+            const btn = document.createElement('button');
+            btn.textContent = buttonText;
+            btn.style.marginTop = '18px';
+            btn.style.width = '100%';
+            btn.style.fontSize = '1.1em';
+            btn.onclick = () => {
+                modal.style.display = 'none';
+                if (onClick) onClick();
+            };
+            modal.appendChild(btn);
+        }
+        modal.style.display = 'flex';
+    }
+    function hideDeploymentModal() {
+        const modal = document.getElementById('deployment-modal');
+        if (modal) modal.style.display = 'none';
+    }
 });
 
