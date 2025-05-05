@@ -9,8 +9,8 @@
 <body>
     <div id="welcome-screen" class="screen active">
         <h1>Welcome to Game of Boys</h1>
-        <div class="welcome-meta">v0.4 – Last updated: May 3, 2025</div>
-        <button id="start-game-btn">OK</button>
+        <div class="welcome-intro">The sun rises over the blood-soaked fields of war.</div>
+        <button id="start-game-btn">Enter the Fray</button>
     </div>
 
     <div id="game-area" class="screen">
@@ -18,14 +18,18 @@
             <div id="game-board"></div>
             <div id="game-over-overlay" class="overlay">
                 <h2 id="game-over-message"></h2>
+                <button id="play-again-btn" style="margin-top: 20px; font-size: 1.1em; padding: 10px 24px; border-radius: 6px; border: 2px solid #888; background: #eee; color: #333; cursor: pointer;">Play Again</button>
             </div>
         </div>
-        <div id="log-area">
-             <!-- Game log -->
+        <div id="log-area" style="position: relative;">
+            <button id="toggle-log" class="panel-toggle-btn" aria-label="Toggle Log Panel">−</button>
+            <!-- Game log -->
         </div>
+        <div id="unit-status-panel"></div>
         <!-- Sidebar container for desktop layout -->
         <div class="sidebar">
-            <div id="controls-area">
+            <div id="controls-area" style="position: relative;">
+                <button id="toggle-controls" class="panel-toggle-btn" aria-label="Toggle Controls Panel">−</button>
                 <!-- Unit selection, points, stats, start button -->
             </div>
         </div>

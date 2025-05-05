@@ -152,8 +152,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const col = parseInt(tile.dataset.col);
         const tileKey = `${row}-${col}`;
 
+        // Prevent placement on water unless unit can fly
         if (selectedUnitType && row >= BOARD_SIZE - PLAYER_DEPLOYMENT_ROWS) {
             const unitToPlace = UNITS.crown[selectedUnitType];
+            if (tile.dataset.terrain === 'water' && !unitToPlace.fly) {
+                console.log("Cannot place units on water unless they can fly!");
+                return;
+            }
             if (playerPoints >= unitToPlace.cost && !tile.dataset.unitOnTile) {
                 playerPoints -= unitToPlace.cost;
                 updatePointsDisplay();
@@ -179,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     id: unitId,
                     healthBar: healthBar // Store reference to health bar
                 };
+                ensureUnitStats(placedUnits[unitId]);
                 tile.dataset.unitOnTile = unitId;
                 unitElement.id = unitId;
 
@@ -305,24 +311,19 @@ document.addEventListener("DOMContentLoaded", () => {
         currentTurnUnitOrder = [];
         console.log("Battle Started!");
         logMessage("Battle Begins!", 'important');
-
-        // Hide the deployment panel/sidebar and show the Show Panel button
+        // Remove the deployment panel/sidebar from the DOM
         const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.remove();
+        // Remove the Show Panel button if present
         const showPanelBtn = document.getElementById('show-panel-btn');
-        if (sidebar && showPanelBtn) {
-            sidebar.classList.add('hidden');
-            showPanelBtn.style.display = 'block';
-        }
-
-        const unitButtons = controlsArea.querySelectorAll(".unit-select-btn");
-        unitButtons.forEach(btn => btn.disabled = true);
-        selectedUnitType = null;
-        if (unitStatsDisplay) unitStatsDisplay.innerHTML = "Battle in progress...";
-        const startBtn = document.getElementById("start-battle-btn");
-        if (startBtn) startBtn.disabled = true;
-
+        if (showPanelBtn) showPanelBtn.remove();
+        // Show status panel
+        const unitStatusPanel = document.getElementById('unit-status-panel');
+        if (unitStatusPanel) unitStatusPanel.style.display = '';
+        updateUnitStatusPanel();
         generateEnemyUnits();
         runBattleSimulation(); // Start the simulation loop
+        setPanelDefaults('battle');
     }
 
     function generateEnemyUnits() {
@@ -363,6 +364,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     id: unitId,
                     healthBar: healthBar // Store reference to health bar
                 };
+                ensureUnitStats(placedUnits[unitId]);
                 targetTile.dataset.unitOnTile = unitId;
                 unitElement.id = unitId;
                 enemiesPlaced++;
@@ -510,10 +512,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Helper to fill a template with values
     function fillTemplate(template, data) {
         return template
-            .replace('[A]', data.attacker || '')
-            .replace('[D]', data.defender || '')
+            .replace('[A]', data.attackerObj ? heroNameOr(data.attackerObj) : (data.attacker || ''))
+            .replace('[D]', data.defenderObj ? heroNameOr(data.defenderObj) : (data.defender || ''))
             .replace('[DMG]', data.damage !== undefined ? data.damage : '')
-            .replace('[U]', data.unit || '');
+            .replace('[U]', data.unitObj ? heroNameOr(data.unitObj) : (data.unit || ''));
     }
 
     function moveUnit(unit, targetEnemy) {
@@ -549,6 +551,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Check if the target tile is occupied
                 const targetTile = document.getElementById(`tile-${newRow}-${newCol}`);
                 if (!targetTile || targetTile.dataset.unitOnTile) continue;
+
+                // Prevent moving onto water unless unit can fly
+                if (targetTile.dataset.terrain === 'water' && !unit.fly) continue;
 
                 // For diagonal moves, check if we can move through the corner
                 if (dir.r !== 0 && dir.c !== 0) {
@@ -700,6 +705,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return skipNormalAttack;
     }
 
+    // --- Patch: Ensure all units have afflictions/bonuses arrays ---
+    function ensureUnitStatusArrays(unit) {
+        if (!unit.afflictions) unit.afflictions = [];
+        if (!unit.bonuses) unit.bonuses = [];
+    }
+
+    const originalAttackUnit = attackUnit;
+    attackUnit = function(attacker, target) {
+        const result = originalAttackUnit.apply(this, arguments);
+        if (target && target.faction === 'crown') updateUnitStatusPanel();
+        return result;
+    };
+
     function attackUnit(attacker, target) {
         if (!attacker || !target || attacker.currentHp <= 0 || target.currentHp <= 0) {
             return false; // Attack failed
@@ -711,7 +729,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         // Always advance the turn, even after a special move
         if (skipNormalAttack) {
-            // If the special move killed the target, ensure the main loop continues
             setTimeout(() => {
                 if (typeof processNextUnitAction === 'function') processNextUnitAction();
             }, 500);
@@ -738,45 +755,36 @@ document.addEventListener("DOMContentLoaded", () => {
             const affectedUnits = getUnitsInArea(target.row, target.col);
             logMessage(fillTemplate(randomTemplate('spell'), { attacker: attacker.name }), 'spell', true, attacker.faction);
             logFlavorMessage('spell', attacker);
-            
             // Create flame effect on all affected tiles
             for (let r = Math.max(0, target.row - 1); r <= Math.min(BOARD_SIZE - 1, target.row + 1); r++) {
                 for (let c = Math.max(0, target.col - 1); c <= Math.min(BOARD_SIZE - 1, target.col + 1); c++) {
                     const tile = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
                     if (tile) {
                         createFlameEffect(tile);
-                        // Pulse spell effect on units in area
                         if (tile.dataset.unitOnTile) pulseUnit(tile.dataset.unitOnTile, 'unit-pulse-spell');
                     }
                 }
             }
-            
             return Promise.all(affectedUnits.map(async unit => {
+                ensureUnitStatusArrays(unit);
                 const isMainTarget = unit.id === target.id;
-                const splashDamage = isMainTarget ? finalDamage : Math.floor(finalDamage / 2);
+                const splashDamage = isMainTarget ? finalDamage * 2 : finalDamage;
+                unit.isBeingAttacked = true;
                 unit.currentHp -= splashDamage;
-                
-                // Update health bar for affected unit
-                if (unit.healthBar) {
-                    updateHealthBar(unit, unit.healthBar);
-                }
-                
+                if (unit.healthBar) updateHealthBar(unit, unit.healthBar);
                 const msg = fillTemplate(randomTemplate(isMainTarget ? (isCrit ? 'crit' : 'attack') : 'attack'), {
                     attacker: attacker.name,
                     defender: unit.name,
                     damage: splashDamage
                 });
                 await logMessage(msg, isMainTarget ? (isCrit ? 'crit' : 'spell') : 'attack', isMainTarget, attacker.faction);
-                
-                // Check for low health flavor message
                 if (unit.currentHp > 0 && unit.currentHp < unit.hp * 0.3) {
                     logFlavorMessage('low-health', unit);
                 }
-                
-                // Flash effect for all affected units
                 flashElement(document.getElementById(unit.id), "damage-flash");
                 flashElement(document.getElementById(unit.id), "wizard-flash");
-                
+                if (unit.faction === 'crown') updateUnitStatusPanel(unit.id);
+                setTimeout(() => { unit.isBeingAttacked = false; if (unit.faction === 'crown') updateUnitStatusPanel(); }, 700);
                 if (unit.currentHp <= 0) {
                     const deathMsg = fillTemplate(randomTemplate('death'), { defender: unit.name });
                     await logMessage(deathMsg, 'death', true, unit.faction);
@@ -785,14 +793,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             })).then(() => true);
         } else {
-            // Regular attack
+            ensureUnitStatusArrays(target);
+            target.isBeingAttacked = true;
             target.currentHp -= finalDamage;
-            
-            // Update health bar for target
             if (target.healthBar) {
                 updateHealthBar(target, target.healthBar);
             }
-            
             const msg = fillTemplate(randomTemplate(isCrit ? 'crit' : 'attack'), {
                 attacker: attacker.name,
                 defender: target.name,
@@ -801,12 +807,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return logMessage(msg, isCrit ? 'crit' : 'attack', isCrit, attacker.faction).then(() => {
                 flashElement(document.getElementById(attacker.id), "attack-flash");
                 flashElement(document.getElementById(target.id), "damage-flash");
-                
-                // Check for low health flavor message
+                if (target.faction === 'crown') updateUnitStatusPanel(target.id);
+                setTimeout(() => { target.isBeingAttacked = false; if (target.faction === 'crown') updateUnitStatusPanel(); }, 700);
                 if (target.currentHp > 0 && target.currentHp < target.hp * 0.3) {
                     logFlavorMessage('low-health', target);
                 }
-                
                 if (target.currentHp <= 0) {
                     const deathMsg = fillTemplate(randomTemplate('death'), { defender: target.name });
                     return logMessage(deathMsg, 'death', true, target.faction).then(() => {
@@ -920,6 +925,13 @@ document.addEventListener("DOMContentLoaded", () => {
         currentTurnUnitOrder = Object.keys(placedUnits).filter(id => placedUnits[id] && placedUnits[id].currentHp > 0);
         currentUnitIndex = 0;
 
+        // Increment turnsSurvived for all units and check hero promotion
+        Object.values(placedUnits).forEach(unit => {
+            ensureUnitStats(unit);
+            unit.turnsSurvived += 1;
+        });
+        checkHeroPromotion();
+
         // Start processing the first unit of the new turn
         processNextUnitAction();
     }
@@ -956,6 +968,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             battleStarted = false; // End the battle state
             if (battleTimeout) clearTimeout(battleTimeout); // Stop any pending actions
+            setPanelDefaults('gameover');
             return true;
         }
         return false;
@@ -996,7 +1009,7 @@ document.addEventListener("DOMContentLoaded", () => {
         proj.style.left = (fromRect.left - boardRect.left + fromRect.width / 2 - 4) + 'px';
         proj.style.top = (fromRect.top - boardRect.top + fromRect.height / 2 - 4) + 'px';
         proj.style.position = 'absolute';
-        proj.style.transition = 'transform 0.3s linear';
+        proj.style.transition = 'transform 0.1s linear';
         fromTile.parentElement.appendChild(proj);
         // Calculate translation
         const dx = (toRect.left - fromRect.left) + (toRect.width - fromRect.width) / 2;
@@ -1006,7 +1019,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 10);
         setTimeout(() => {
             proj.remove();
-        }, 500);
+        }, 300);
     }
 
     // --- Initialization ---
@@ -1015,8 +1028,11 @@ document.addEventListener("DOMContentLoaded", () => {
         startGameBtn.addEventListener("click", () => {
             console.log("Start button clicked");
             if (welcomeScreen) {
-                console.log("Removing active class from welcome screen");
-                welcomeScreen.classList.remove("active");
+                welcomeScreen.classList.add("fade-out");
+                setTimeout(() => {
+                    welcomeScreen.classList.remove("active");
+                    welcomeScreen.style.display = "none";
+                }, 700); // Match CSS transition
             }
             if (gameArea) {
                 console.log("Adding active class to game area");
@@ -1044,5 +1060,154 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // Play Again button logic
+    const playAgainBtn = document.getElementById('play-again-btn');
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', () => {
+            // Hide overlay
+            if (gameOverOverlay) gameOverOverlay.classList.remove('active');
+            // Show game area and reset game state
+            if (welcomeScreen) welcomeScreen.classList.remove('active');
+            if (gameArea) gameArea.classList.add('active');
+            // Reset game state and UI
+            playerPoints = 1000;
+            gameLog = [];
+            if(logArea) logArea.innerHTML = "";
+            createGameBoard();
+            createControls();
+            // Show the deployment panel/sidebar
+            const sidebar = document.querySelector('.sidebar');
+            const showPanelBtn = document.getElementById('show-panel-btn');
+            if (sidebar) sidebar.classList.remove('hidden');
+            if (showPanelBtn) showPanelBtn.style.display = 'none';
+            const controlsArea = document.getElementById('controls-area');
+            if (controlsArea) controlsArea.style.display = '';
+            const unitStatusPanel = document.getElementById('unit-status-panel');
+            if (unitStatusPanel) unitStatusPanel.style.display = '';
+            updateUnitStatusPanel();
+            setPanelDefaults('deploy');
+        });
+    }
+
+    // --- Simple Unit Status Panel for Crown Units ---
+    function updateUnitStatusPanel() {
+        const panel = document.getElementById('unit-status-panel');
+        if (!panel) return;
+        const crownUnits = Object.values(placedUnits).filter(u => u.faction === 'crown' && u.currentHp > 0);
+        if (crownUnits.length === 0) {
+            panel.innerHTML = '<div style="color:#bbb; text-align:center;">No units alive.</div>';
+            return;
+        }
+        panel.innerHTML = crownUnits.map(unit => `
+            <div class="unit-status-entry">
+                <strong>${unit.name}</strong> (${unit.symbol})<br>
+                <span>${unit.currentHp} / ${unit.hp} HP</span>
+            </div>
+        `).join('');
+    }
+
+    // --- Panel Toggle Logic ---
+    function setPanelCollapsed(panelId, collapsed) {
+        const panel = document.getElementById(panelId);
+        const btn = panel && panel.querySelector('.panel-toggle-btn');
+        if (!panel || !btn) return;
+        if (collapsed) {
+            panel.classList.add('collapsed');
+            btn.textContent = '+';
+        } else {
+            panel.classList.remove('collapsed');
+            btn.textContent = '−';
+        }
+    }
+    function setupPanelToggle(panelId) {
+        const panel = document.getElementById(panelId);
+        const btn = panel && panel.querySelector('.panel-toggle-btn');
+        if (!panel || !btn) return;
+        btn.addEventListener('click', () => {
+            const collapsed = panel.classList.toggle('collapsed');
+            btn.textContent = collapsed ? '+' : '−';
+        });
+    }
+    // Set default panel states for each phase
+    function setPanelDefaults(phase) {
+        // phase: 'deploy', 'battle', 'gameover'
+        setPanelCollapsed('unit-status-panel', phase === 'deploy');
+        setPanelCollapsed('controls-area', phase !== 'deploy');
+        setPanelCollapsed('log-area', false);
+    }
+    // Setup toggles on DOMContentLoaded
+    setupPanelToggle('unit-status-panel');
+    setupPanelToggle('controls-area');
+    setupPanelToggle('log-area');
+    // Set initial state for deployment phase
+    setPanelDefaults('deploy');
+
+    // --- Hero Promotion System ---
+    const HERO_NAMES = [
+        "Varn the Ash-Blooded", "Serra Ironheart", "Durnan the Relentless", "Kael of the Dawn", "Mira Stormblade", "Thane the Unbroken", "Lira the Swift", "Bramm the Stalwart", "Eira the Flame", "Garrick the Wolf", "Sable the Silent", "Torin the Just"
+    ];
+    function getRandomHeroName() {
+        return HERO_NAMES[Math.floor(Math.random() * HERO_NAMES.length)];
+    }
+    function promoteToHero(unit) {
+        if (unit.isHero) return;
+        unit.isHero = true;
+        unit.level = 2;
+        unit.heroName = getRandomHeroName();
+        unit.attack += 2;
+        unit.hp += 5;
+        unit.currentHp += 5;
+        // Visual: add star icon, gold glow, tooltip
+        const unitEl = document.getElementById(unit.id);
+        if (unitEl) {
+            // Add star icon if not present
+            if (!unitEl.querySelector('.hero-star')) {
+                const star = document.createElement('span');
+                star.className = 'hero-star';
+                star.textContent = '★';
+                star.style.position = 'absolute';
+                star.style.top = '2px';
+                star.style.right = '6px';
+                star.style.fontSize = '1.2em';
+                star.style.color = '#ffd700';
+                star.style.textShadow = '0 0 6px #fff176, 0 0 2px #fff';
+                star.style.pointerEvents = 'none';
+                unitEl.appendChild(star);
+            }
+            unitEl.classList.add('hero-glow');
+            unitEl.title = unit.heroName;
+        }
+        // Log dramatic message
+        logMessage(`⚔ A HERO HAS EMERGED: ${unit.heroName} rises from the ranks!`, 'important', true, unit.faction);
+    }
+    function heroNameOr(unit) {
+        return unit.isHero && unit.heroName ? unit.heroName : unit.name;
+    }
+    // Patch: Track stats for each unit
+    function ensureUnitStats(unit) {
+        if (unit.kills === undefined) unit.kills = 0;
+        if (unit.totalDamage === undefined) unit.totalDamage = 0;
+        if (unit.turnsSurvived === undefined) unit.turnsSurvived = 0;
+        if (unit.hasTakenDamage === undefined) unit.hasTakenDamage = false;
+    }
+    // Patch: In createGameBoard and generateEnemyUnits, ensure stats for each unit
+    // Patch: In attackUnit, increment stats
+    // Patch: In processNextUnitAction, increment turnsSurvived
+    // Patch: At end of each turn (in startNewTurn), check for hero promotion
+    function checkHeroPromotion() {
+        Object.values(placedUnits).forEach(unit => {
+            ensureUnitStats(unit);
+            if (!unit.isHero && (
+                unit.totalDamage >= 20 ||
+                unit.kills >= 2 ||
+                (unit.turnsSurvived >= 6 && unit.hasTakenDamage)
+            )) {
+                promoteToHero(unit);
+            }
+        });
+    }
+    // Patch: In startNewTurn, after incrementing turnsSurvived, call checkHeroPromotion
+    // Patch: In logMessage, use heroNameOr(unit) for unit names
 });
 

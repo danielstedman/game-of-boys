@@ -32,29 +32,49 @@ body {
     min-height: 100vh;
 }
 
-#welcome-screen h1 {
-    font-size: 1.5em;
-    margin-bottom: 40px;
-    color: #fff; /* White text */
+#welcome-screen {
+    background: linear-gradient(120deg, #23272b 0%, #18191c 100%);
+    animation: welcome-pulse 8s ease-in-out infinite;
+    transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1);
+    opacity: 1;
 }
-
-#start-game-btn {
-    width: 100px;
-    height: 100px;
+#welcome-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+@keyframes welcome-pulse {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; background-color: #23272b; }
+    100% { background-position: 0% 50%; }
+}
+.welcome-intro {
     font-size: 1.2em;
-    background-color: #eee; /* Light gray button */
-    color: #333; /* Dark gray text */
-    border: 2px solid #888; /* Medium gray border */
+    color: #eee;
+    margin-bottom: 36px;
+    margin-top: 18px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 8px #111;
+    text-align: center;
+}
+#start-game-btn {
+    width: 180px;
+    height: 54px;
+    font-size: 1.2em;
+    background: linear-gradient(90deg, #fff 0%, #bbb 100%);
+    color: #23272b;
+    border: 2px solid #888;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    font-weight: bold;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s;
 }
-
 #start-game-btn:hover {
-    background-color: #ccc; /* Lighter gray on hover */
-}
-
-#start-game-btn:active {
-    background-color: #aaa; /* Darker gray when pressed */
+    background: #fffbe7;
+    color: #111;
+    box-shadow: 0 4px 18px rgba(255,255,255,0.08);
 }
 
 /* --- Game Area Layout --- */
@@ -108,12 +128,16 @@ body {
 
     .sidebar {
         width: 300px;
-        margin: 0;
+        min-width: 220px;
+        max-width: 340px;
+        margin-right: 16px;
+        height: auto;
+        background: none;
+        box-shadow: none;
+        position: static;
+        transition: width 0.2s, margin 0.2s;
         flex-shrink: 0;
-        height: 90vmin;
-        max-height: 500px;
-        display: flex;
-        flex-direction: column;
+        display: block;
     }
 
     #controls-area {
@@ -559,14 +583,6 @@ body {
     pointer-events: none;
 }
 
-.welcome-meta {
-    font-size: 1em;
-    color: #bbb;
-    margin-bottom: 20px;
-    font-style: italic;
-    letter-spacing: 0.5px;
-}
-
 /* Sidebar hide/show transitions */
 .sidebar {
     transition: transform 0.3s, opacity 0.3s;
@@ -737,13 +753,184 @@ body {
   border-radius: 50%;
   z-index: 100;
   pointer-events: none;
-  transition: transform 0.15s linear;
+  transition: transform 0.1s linear; /* Faster animation (0.1s instead of 0.15s) */
 }
 .projectile-arrow {
   background-color: #000;
+  width: 2px; /* Thinner arrow */
+  height: 2px; /* Thinner arrow */
+  border-radius: 0; /* Remove rounded corners for arrow */
+  box-shadow: 0 0 2px 1px rgba(0,0,0,0.5); /* Add subtle shadow for visibility */
 }
 .projectile-fire {
   background-color: red;
   box-shadow: 0 0 4px orange;
+}
+
+/* Unit Status Panel Styles */
+@media (min-width: 1024px) {
+  #log-area {
+    width: 90vmin;
+    max-width: 500px;
+    margin: 10px auto 0 auto;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    min-height: 80px;
+    max-height: 300px;
+    color: #ccc;
+    font-size: 0.9em;
+    overflow-y: auto;
+    text-align: left;
+    box-sizing: border-box;
+    border-radius: 4px;
+    flex-shrink: 0;
+    order: 2;
+  }
+  #unit-status-panel {
+    width: 90vmin;
+    max-width: 500px;
+    margin: 16px auto 0 auto;
+    background: #23272b;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 16px 14px 16px 14px;
+    z-index: 20;
+    font-size: 1em;
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    display: block;
+    height: auto;
+    position: static;
+  }
+  .unit-status-entry {
+    margin-bottom: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #444;
+    font-size: 1em;
+    word-break: break-word;
+  }
+  .sidebar {
+    width: 300px;
+    min-width: 220px;
+    max-width: 340px;
+    margin-right: 16px;
+    height: auto;
+    background: none;
+    box-shadow: none;
+    position: static;
+    transition: width 0.2s, margin 0.2s;
+    flex-shrink: 0;
+    display: block;
+  }
+  .sidebar.hidden {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Panel Toggle Button Styles */
+.panel-toggle-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 10;
+  background: #444;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 1.2em;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panel-toggle-btn:hover {
+  background: #222;
+  color: #ffe082;
+}
+
+/* Collapsed panel content (except toggle button) */
+#unit-status-panel.collapsed > :not(.panel-toggle-btn),
+#controls-area.collapsed > :not(.panel-toggle-btn),
+#log-area.collapsed > :not(.panel-toggle-btn) {
+  display: none !important;
+}
+
+@media (max-width: 600px) {
+  .panel-toggle-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 1em;
+    top: 3px;
+    right: 4px;
+  }
+}
+
+.status-healthy {
+  color: #43a047;
+  font-weight: bold;
+}
+.status-wounded {
+  color: #fbc02d;
+  font-weight: bold;
+}
+.status-critical {
+  color: #d32f2f;
+  font-weight: bold;
+}
+.afflictions {
+  color: #ff7043;
+  font-weight: bold;
+  margin-left: 6px;
+}
+.bonuses {
+  color: #43a047;
+  font-weight: bold;
+  margin-left: 6px;
+}
+.in-action {
+  color: #1976d2;
+  font-style: italic;
+  margin-left: 6px;
+}
+.unit-status-row.highlighted {
+  background: #ffe082 !important;
+  animation: unit-status-flash 0.7s;
+}
+@media (max-width: 600px) {
+  #unit-status-panel {
+    font-size: 0.92em;
+    padding: 5px 2px;
+    max-height: 120px;
+  }
+  .unit-status-row {
+    padding: 4px 2px;
+  }
+}
+
+.hero-glow {
+  box-shadow: 0 0 16px 4px #ffd700, 0 2px 8px rgba(0,0,0,0.18) !important;
+  border: 2.5px solid #ffe082 !important;
+  position: relative;
+  z-index: 3;
+}
+.hero-star {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 1.2em;
+  color: #ffd700;
+  text-shadow: 0 0 6px #fff176, 0 0 2px #fff;
+  pointer-events: none;
 }
 
