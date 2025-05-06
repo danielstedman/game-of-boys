@@ -10,8 +10,12 @@
     <div id="welcome-screen" class="screen active">
         <h1>Welcome to Game of Boys</h1>
         <div class="welcome-intro">The sun rises over the blood-soaked fields of war.</div>
-        <button id="start-game-btn">Enter the Fray</button>
+        <div id="mode-select-btns">
+            <button id="single-player-btn">Single Player</button>
+            <button id="two-player-btn">2-Player Mode</button>
+        </div>
     </div>
+    <div id="deployment-modal" style="display:none;"></div>
 
     <div id="game-area" class="screen">
         <div id="game-board-container">
@@ -38,6 +42,6 @@
 
     <!-- Load units.js first, then script.js -->
     <script src="units.js" type="module"></script>
-    <script src="script.js" type="module"></script>
+    <script src="script.js" type="module" defer></script>
 </body>
 </html>

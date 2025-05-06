@@ -934,3 +934,107 @@ body {
   pointer-events: none;
 }
 
+#mode-select-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+  margin-top: 32px;
+}
+#mode-select-btns button {
+  width: 220px;
+  height: 56px;
+  font-size: 1.25em;
+  background: linear-gradient(90deg, #fff 0%, #bbb 100%);
+  color: #23272b;
+  border: 2px solid #888;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  margin-bottom: 0;
+}
+#mode-select-btns button:hover {
+  background: #fffbe7;
+  color: #111;
+  box-shadow: 0 4px 18px rgba(255,255,255,0.08);
+}
+#deployment-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(30,30,30,0.92);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  font-size: 1.3em;
+  padding: 40px 20px;
+  font-family: inherit;
+}
+#deployment-modal button {
+  margin-top: 32px;
+  width: 200px;
+  height: 48px;
+  font-size: 1.1em;
+  border-radius: 8px;
+  border: 2px solid #888;
+  background: #fff;
+  color: #23272b;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+#deployment-modal button:hover {
+  background: #ffe082;
+  color: #111;
+}
+
+.zap-flash {
+  animation: zapFlash 0.6s;
+}
+@keyframes zapFlash {
+  0% { background-color: #b3e5fc; }
+  50% { background-color: #81d4fa; }
+  100% { background-color: transparent; }
+}
+
+.healing-pulse {
+  animation: healingPulse 0.6s;
+}
+@keyframes healingPulse {
+  0% { box-shadow: 0 0 0 0 #f8bbd0; }
+  50% { box-shadow: 0 0 24px 8px #f06292; }
+  100% { box-shadow: 0 0 0 0 #f8bbd0; }
+}
+
+.crit-hit {
+  animation: critHit 0.6s;
+}
+@keyframes critHit {
+  0% { background-color: #fffde7; }
+  50% { background-color: #ffd700; }
+  100% { background-color: transparent; }
+}
+
+.lifesteal-glow {
+  animation: lifestealGlow 0.6s;
+}
+@keyframes lifestealGlow {
+  0% { box-shadow: 0 0 0 0 #ff1744; }
+  50% { box-shadow: 0 0 24px 8px #d50000; }
+  100% { box-shadow: 0 0 0 0 #ff1744; }
+}
+
+.fade-out {
+  animation: fadeOut 0.6s forwards;
+}
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+

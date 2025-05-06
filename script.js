@@ -175,30 +175,29 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedUnitType = Object.keys(UNITS.horde)[0];
             const defaultUnitBtn = document.querySelector(`.unit-select-btn[data-unit-id="${selectedUnitType}"]`);
             if (defaultUnitBtn) defaultUnitBtn.click();
+            // Add 'Start Battle' button ONLY after Horde deployment
+            const controlsArea = document.getElementById('controls-area');
+            if (controlsArea) {
+                const startBtn = document.createElement('button');
+                startBtn.id = 'start-battle-btn';
+                startBtn.textContent = 'Start Battle';
+                startBtn.style.marginTop = '18px';
+                startBtn.style.width = '100%';
+                startBtn.style.fontSize = '1.1em';
+                startBtn.onclick = () => {
+                    // Reveal all units
+                    Object.values(placedUnits).forEach(u => {
+                        const el = document.getElementById(u.id);
+                        if (el) el.style.visibility = '';
+                    });
+                    controlsArea.innerHTML = '';
+                    hideDeploymentModal();
+                    // Start the battle
+                    startBattle();
+                };
+                controlsArea.appendChild(startBtn);
+            }
         });
-        // Add 'Start Battle' button
-        const controlsArea = document.getElementById('controls-area');
-        if (controlsArea) {
-            controlsArea.innerHTML = '';
-            const startBtn = document.createElement('button');
-            startBtn.id = 'start-battle-btn';
-            startBtn.textContent = 'Start Battle';
-            startBtn.style.marginTop = '18px';
-            startBtn.style.width = '100%';
-            startBtn.style.fontSize = '1.1em';
-            startBtn.onclick = () => {
-                // Reveal all units
-                Object.values(placedUnits).forEach(u => {
-                    const el = document.getElementById(u.id);
-                    if (el) el.style.visibility = '';
-                });
-                controlsArea.innerHTML = '';
-                hideDeploymentModal();
-                // Start the battle
-                startBattle();
-            };
-            controlsArea.appendChild(startBtn);
-        }
     }
     function updatePointsDisplayHorde() {
         if (pointsDisplay) {
@@ -662,11 +661,15 @@ document.addEventListener("DOMContentLoaded", () => {
         unitStatsDisplay.innerHTML = "Select a unit to see stats.";
         controlsArea.appendChild(unitStatsDisplay);
 
-        const startBattleButton = document.createElement("button");
-        startBattleButton.id = "start-battle-btn";
-        startBattleButton.textContent = "Start Battle";
-        startBattleButton.addEventListener("click", startBattle);
-        controlsArea.appendChild(startBattleButton);
+        // Only add the Start Battle button in single-player mode
+        if (gameState.mode === 'single') {
+            const startBattleButton = document.createElement("button");
+            startBattleButton.id = "start-battle-btn";
+            startBattleButton.textContent = "Start Battle";
+            startBattleButton.addEventListener("click", startBattle);
+            controlsArea.appendChild(startBattleButton);
+        }
+        // In two-player mode, do NOT add Start Battle during deployment; it is added in startHordeDeployment.
     }
 
     // --- Battle Logic (Sequential Actions) ---
@@ -833,6 +836,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }, duration);
     }
 
+    function triggerVisualEffect(unit, effectClass) {
+        const el = document.getElementById(unit.id);
+        if (!el) return;
+        el.classList.add(effectClass);
+        setTimeout(() => el.classList.remove(effectClass), 600);
+    }
+
     function performSpecialMove(attacker, target) {
         const move = attacker.specialMove;
         let logText = '';
@@ -880,6 +890,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case 'blindingDust':
                 logText = `${attacker.name} uses ${move.name}! ${target.name}'s accuracy is reduced!`;
+                break;
+            case 'spiritBurst':
+                if (target) {
+                    triggerVisualEffect(target, 'zap-flash');
+                }
+                break;
+            case 'lifesteal':
+                if (attacker) {
+                    triggerVisualEffect(attacker, 'lifesteal-glow');
+                }
                 break;
             default:
                 logText = `${attacker.name} attempts a special move, but nothing happens.`;
@@ -1025,6 +1045,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         console.log(`Marked unit as defeated: ${unit.id}`);
         // Actual removal from placedUnits might happen at end of turn or start of next
+        triggerVisualEffect(unit, 'fade-out');
+        setTimeout(() => {
+            // ... existing removal logic ...
+        }, 600);
     }
 
     function flashElement(element, className, duration = 300) {
@@ -1244,32 +1268,90 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // --- Robust Reset to Welcome Screen ---
+    function resetGameToWelcome() {
+        // Clear any pending timeouts/intervals
+        if (battleTimeout) {
+            clearTimeout(battleTimeout);
+            battleTimeout = null;
+        }
+        
+        // Reset all game state variables
+        selectedUnitType = null;
+        playerPoints = 1000;
+        placedUnits = {};
+        gameLog = [];
+        battleStarted = false;
+        turnNumber = 0;
+        currentUnitIndex = 0;
+        currentTurnUnitOrder = [];
+        if (typeof gameState !== 'undefined') {
+            gameState.deploymentPhase = null;
+            gameState.mode = null;
+        }
+        
+        // Reset UI elements
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const gameArea = document.getElementById('game-area');
+        const gameBoard = document.getElementById('game-board');
+        const logArea = document.getElementById('log-area');
+        const controlsArea = document.getElementById('controls-area');
+        const unitStatusPanel = document.getElementById('unit-status-panel');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const sidebar = document.querySelector('.sidebar');
+        const showPanelBtn = document.getElementById('show-panel-btn');
+        
+        // Show welcome screen and hide game area
+        if (welcomeScreen) {
+            welcomeScreen.classList.add('active');
+            welcomeScreen.style.display = 'flex';
+            welcomeScreen.classList.remove('fade-out');
+        }
+        if (gameArea) {
+            gameArea.classList.remove('active');
+            gameArea.style.display = 'none';
+        }
+        
+        // Clear all UI elements
+        if (gameBoard) gameBoard.innerHTML = '';
+        if (logArea) logArea.innerHTML = '';
+        if (controlsArea) controlsArea.innerHTML = '';
+        if (unitStatusPanel) unitStatusPanel.innerHTML = '';
+        
+        // Reset overlays and panels
+        if (gameOverOverlay) {
+            gameOverOverlay.classList.remove('active');
+            gameOverOverlay.style.display = 'none';
+        }
+        if (sidebar) sidebar.classList.add('hidden');
+        if (showPanelBtn) showPanelBtn.style.display = 'none';
+        
+        // Remove any lingering event listeners from tiles
+        document.querySelectorAll('.tile').forEach(tile => {
+            tile.replaceWith(tile.cloneNode(true));
+        });
+        
+        // Reset points display
+        if (pointsDisplay) {
+            pointsDisplay.textContent = 'Points: 1000';
+        }
+        
+        // Reset unit stats display
+        if (unitStatsDisplay) {
+            unitStatsDisplay.innerHTML = 'Select a unit to see stats.';
+        }
+        
+        // Force a reflow to ensure CSS transitions work
+        if (welcomeScreen) {
+            welcomeScreen.offsetHeight;
+        }
+    }
+
     // Play Again button logic
     const playAgainBtn = document.getElementById('play-again-btn');
     if (playAgainBtn) {
         playAgainBtn.addEventListener('click', () => {
-            // Hide overlay
-            if (gameOverOverlay) gameOverOverlay.classList.remove('active');
-            // Show game area and reset game state
-            if (welcomeScreen) welcomeScreen.classList.remove('active');
-            if (gameArea) gameArea.classList.add('active');
-            // Reset game state and UI
-            playerPoints = 1000;
-            gameLog = [];
-            if(logArea) logArea.innerHTML = "";
-            createGameBoard();
-            createControls();
-            // Show the deployment panel/sidebar
-            const sidebar = document.querySelector('.sidebar');
-            const showPanelBtn = document.getElementById('show-panel-btn');
-            if (sidebar) sidebar.classList.remove('hidden');
-            if (showPanelBtn) showPanelBtn.style.display = 'none';
-            const controlsArea = document.getElementById('controls-area');
-            if (controlsArea) controlsArea.style.display = '';
-            const unitStatusPanel = document.getElementById('unit-status-panel');
-            if (unitStatusPanel) unitStatusPanel.style.display = '';
-            updateUnitStatusPanel();
-            setPanelDefaults('deploy');
+            resetGameToWelcome();
         });
     }
 
