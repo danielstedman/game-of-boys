@@ -107,8 +107,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Game State for Mode Selection ---
     const gameState = {
-        mode: 'single', // or 'two-player'
-        deploymentPhase: null // 'crown', 'horde', or null
+        mode: 'single', // or 'two-player' or 'campaign'
+        deploymentPhase: null, // 'crown', 'horde', or null
+        campaignLevel: null
+    };
+
+    // --- Campaign State ---
+    const campaignState = {
+        currentLevel: 1,
+        survivingUnits: [],
+        defeatedUnits: [],
+        totalHeroes: 0,
+        playerPoints: 1000
     };
 
     // --- Two-Player Deployment Flow ---
@@ -493,64 +503,81 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
         updateUnitStatusPanel();
-        if (gameState.mode === 'single') {
+        // For campaign mode, generate horde right before battle if not present
+        if (gameState.mode === 'campaign' && !Object.values(placedUnits).some(u => u.faction === 'horde')) {
+            const enemyPoints = 1000 + ((gameState.campaignLevel - 1) * 100);
+            setTimeout(() => {
+                generateHordeDeployment(enemyPoints);
+                console.log("DEBUG: After generateHordeDeployment, horde units:", Object.values(placedUnits).filter(u => u.faction === 'horde').length);
+                console.log("DEBUG: Before runBattleSimulation, horde units:", Object.values(placedUnits).filter(u => u.faction === 'horde').length);
+                runBattleSimulation();
+            }, 100);
+            setPanelDefaults('battle');
+            return;
+        } else if (gameState.mode === 'single' && !Object.values(placedUnits).some(u => u.faction === 'horde')) {
             generateHordeDeployment();
+            console.log("DEBUG: After generateHordeDeployment, horde units:", Object.values(placedUnits).filter(u => u.faction === 'horde').length);
         }
+        console.log("DEBUG: Before runBattleSimulation, horde units:", Object.values(placedUnits).filter(u => u.faction === 'horde').length);
         runBattleSimulation(); // Start the simulation loop
         setPanelDefaults('battle');
     }
 
     function generateHordeDeployment() {
-        console.log("Generating enemy units...");
-        const numberOfEnemies = 10; // Example
-        let enemiesPlaced = 0;
-        const maxAttempts = 100;
+        console.log("[DEBUG] generateHordeDeployment called");
+        // Check if the board is ready
+        const testTile = document.getElementById('tile-0-0');
+        if (!testTile) {
+            console.error("[DEBUG] Board not initialized! No tiles found.");
+            return;
+        }
+        let pointsLeft = 1000;
+        const maxAttempts = 1000;
         let attempts = 0;
-
-        while (enemiesPlaced < numberOfEnemies && attempts < maxAttempts) {
+        let placed = 0;
+        const usedTiles = new Set();
+        while (pointsLeft > 0 && attempts < maxAttempts) {
             attempts++;
+            // Pick a random Horde unit
+            const unitKeys = Object.keys(UNITS.horde);
+            const randomUnitId = unitKeys[Math.floor(Math.random() * unitKeys.length)];
+            const unitData = UNITS.horde[randomUnitId];
+            if (unitData.cost > pointsLeft) continue;
+            // Pick a random tile in the top 4 rows
             const randomRow = Math.floor(Math.random() * ENEMY_DEPLOYMENT_ROWS);
             const randomCol = Math.floor(Math.random() * BOARD_SIZE);
             const tileKey = `${randomRow}-${randomCol}`;
+            if (usedTiles.has(tileKey)) continue;
             const targetTile = document.getElementById(`tile-${tileKey}`);
-
-            if (targetTile && !targetTile.dataset.unitOnTile) {
-                const randomEnemyId = HORDE_UNIT_IDS[Math.floor(Math.random() * HORDE_UNIT_IDS.length)];
-                const enemyUnitData = UNITS.horde[randomEnemyId];
-
-                const unitElement = document.createElement("div");
-                unitElement.classList.add("unit", `unit-${randomEnemyId}`, "horde-unit");
-                unitElement.textContent = enemyUnitData.symbol;
-                unitElement.dataset.unitId = randomEnemyId;
-                
-                // Create health bar for the enemy unit
-                const healthBar = createHealthBar(unitElement, enemyUnitData.hp);
-                
-                targetTile.appendChild(unitElement);
-
-                const unitId = `horde-${randomEnemyId}-${Date.now()}-${Math.random()}`;
-                placedUnits[unitId] = { 
-                    ...enemyUnitData, 
-                    row: randomRow, 
-                    col: randomCol, 
-                    faction: "horde", 
-                    currentHp: enemyUnitData.hp, 
-                    id: unitId,
-                    healthBar: healthBar // Store reference to health bar
-                };
-                ensureUnitStats(placedUnits[unitId]);
-                targetTile.dataset.unitOnTile = unitId;
-                unitElement.id = unitId;
-                enemiesPlaced++;
-            }
+            if (!targetTile || targetTile.dataset.unitOnTile) continue;
+            // Place the unit
+            console.log(`[DEBUG] Placing ${randomUnitId} at ${tileKey}, cost: ${unitData.cost}, points left: ${pointsLeft}`);
+            const unitElement = document.createElement("div");
+            unitElement.classList.add("unit", `unit-${randomUnitId}`, "horde-unit");
+            unitElement.textContent = unitData.symbol;
+            unitElement.dataset.unitId = randomUnitId;
+            // Create health bar
+            const healthBar = createHealthBar(unitElement, unitData.hp);
+            targetTile.appendChild(unitElement);
+            const uniqueId = `horde-${randomUnitId}-${Date.now()}-${Math.random()}`;
+            placedUnits[uniqueId] = {
+                ...unitData,
+                row: randomRow,
+                col: randomCol,
+                faction: "horde",
+                currentHp: unitData.hp,
+                id: uniqueId,
+                healthBar: healthBar
+            };
+            ensureUnitStats(placedUnits[uniqueId]);
+            targetTile.dataset.unitOnTile = uniqueId;
+            unitElement.id = uniqueId;
+            usedTiles.add(tileKey);
+            pointsLeft -= unitData.cost;
+            placed++;
         }
-
-        if (enemiesPlaced > 0) {
-             logMessage(`Enemy reinforcements arrive! (${enemiesPlaced} units)`, 'important');
-        } else {
-             logMessage("No enemy reinforcements arrived.", 'important');
-        }
-        console.log("Enemy units generated.");
+        logMessage(`Enemy reinforcements arrive! (${placed} units, ${1000-pointsLeft} points)`, 'important');
+        console.log(`[DEBUG] Horde units generated: ${placed}, points used: ${1000-pointsLeft}`);
     }
 
     function logFlavorMessage(contextType, unit) {
@@ -589,31 +616,27 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!logArea) return;
         gameLog.push(message);
         const logEntry = document.createElement("p");
-        // Styled log text and emojis
-        if (type === 'crit') {
-            logEntry.innerHTML = `<span class='log-critical'>💥 <b>${message}</b></span>`;
-        } else if (type === 'death') {
-            logEntry.innerHTML = `<span class='log-death'>☠️ <b>${message}</b></span>`;
-        } else if (type === 'important' && message.includes('HERO HAS EMERGED')) {
-            logEntry.innerHTML = `<span class='log-hero'>✨ <b>${message.replace('A HERO HAS EMERGED:', 'A HERO HAS EMERGED: ★')}</b></span>`;
-        } else {
-            logEntry.textContent = message;
-        }
+        logEntry.textContent = message;
+
         // Faction-based coloring
         if (faction === 'crown') {
             logEntry.classList.add('log-crown');
         } else if (faction === 'horde') {
             logEntry.classList.add('log-horde');
         }
-        // Remove all flash/animation classes
-        logEntry.classList.remove('log-flash-death', 'log-flash-crit', 'log-flash-spell', 'log-flash-victory', 'log-flash-defeat', 'log-flash-important');
+
+        // Important event styling and flash
+        if (IMPORTANT_EVENT_TYPES.includes(type)) {
+            logEntry.classList.add('log-important');
+            const flashClass = FLASH_CLASS_MAP[type] || 'log-flash-important';
+            logEntry.classList.add(flashClass);
+        }
+
         logArea.appendChild(logEntry);
         logArea.scrollTop = logArea.scrollHeight;
         console.log("Log: ", message);
-        // Add a pause for important events
-        if (['death', 'crit'].includes(type) || (type === 'important' && message.includes('HERO HAS EMERGED'))) {
-            return new Promise(resolve => setTimeout(resolve, 500));
-        }
+
+        // Return a promise that resolves after the delay if it's a dramatic event
         if (isDramatic) {
             return new Promise(resolve => setTimeout(resolve, 500));
         }
@@ -665,8 +688,8 @@ document.addEventListener("DOMContentLoaded", () => {
         unitStatsDisplay.innerHTML = "Select a unit to see stats.";
         controlsArea.appendChild(unitStatsDisplay);
 
-        // Only add the Start Battle button in single-player mode
-        if (gameState.mode === 'single') {
+        // Only add the Start Battle button in single-player or campaign mode
+        if (gameState.mode === 'single' || gameState.mode === 'campaign') {
             const startBattleButton = document.createElement("button");
             startBattleButton.id = "start-battle-btn";
             startBattleButton.textContent = "Start Battle";
@@ -742,6 +765,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 const targetTile = document.getElementById(`tile-${newRow}-${newCol}`);
                 if (!targetTile || targetTile.dataset.unitOnTile) continue;
 
+                // Prevent moving onto water unless unit can fly
+                if (targetTile.dataset.terrain === 'water' && !unit.fly) continue;
+
+                // For diagonal moves, check if we can move through the corner
+                if (dir.r !== 0 && dir.c !== 0) {
+                    const corner1 = document.getElementById(`tile-${unit.row}-${newCol}`);
+                    const corner2 = document.getElementById(`tile-${newRow}-${unit.col}`);
+                    if ((corner1 && corner1.dataset.unitOnTile) && (corner2 && corner2.dataset.unitOnTile)) {
+                        continue; // Skip if both corners are blocked
+                    }
+                }
+
                 // Calculate distance to target
                 const dist = Math.abs(newRow - targetEnemy.row) + Math.abs(newCol - targetEnemy.col);
                 if (dist < bestDist) {
@@ -777,12 +812,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (moved) {
-            const newTile = document.getElementById(`tile-${unit.row}-${unit.col}`);
-            if (newTile && newTile.dataset.terrain === 'water' && !unit.waterAdaptive) {
-                unit.skipNextTurn = true;
-                logMessage(`${unit.name} is slowed by water and will skip their next turn!`, 'important', false, unit.faction);
-                console.log(`Unit ${unit.name} (${unit.id}) moved into water and will skip next turn.`);
-            }
             const msg = fillTemplate(randomTemplate('move'), { unit: unit.name });
             logMessage(msg, 'normal', false, unit.faction);
         } else {
@@ -834,13 +863,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }, duration);
     }
 
-    function triggerVisualEffect(unit, effectClass) {
-        const el = document.getElementById(unit.id);
-        if (!el) return;
-        el.classList.add(effectClass);
-        setTimeout(() => el.classList.remove(effectClass), 600);
-    }
-
     function performSpecialMove(attacker, target) {
         const move = attacker.specialMove;
         let logText = '';
@@ -865,10 +887,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case 'shieldBash':
                 logText = `${attacker.name} uses ${move.name}! ${target.name} is stunned!`;
-                if (target) {
-                    target.skipNextTurn = true;
-                    logMessage(`${target.name} is stunned and will skip their next turn!`, 'important', false, target.faction);
-                }
                 break;
             case 'infernoSurge':
                 logText = `${attacker.name} unleashes ${move.name}! 3x3 AoE fire!`;
@@ -893,23 +911,6 @@ document.addEventListener("DOMContentLoaded", () => {
             case 'blindingDust':
                 logText = `${attacker.name} uses ${move.name}! ${target.name}'s accuracy is reduced!`;
                 break;
-            case 'spiritBurst':
-                if (target) {
-                    triggerVisualEffect(target, 'zap-flash');
-                }
-                break;
-            case 'lifesteal':
-                if (attacker) {
-                    triggerVisualEffect(attacker, 'lifesteal-glow');
-                }
-                break;
-            case 'quakeSlam':
-                logText = `${attacker.name} uses ${move.name}! ${target.name} is stunned by the quake!`;
-                if (target) {
-                    target.skipNextTurn = true;
-                    logMessage(`${target.name} is stunned and will skip their next turn!`, 'important', false, target.faction);
-                }
-                break;
             default:
                 logText = `${attacker.name} attempts a special move, but nothing happens.`;
         }
@@ -933,49 +934,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function attackUnit(attacker, target) {
         if (!attacker || !target || attacker.currentHp <= 0 || target.currentHp <= 0) {
             return false; // Attack failed
-        }
-        // --- Cleric always prioritizes healing ---
-        if (attacker.name === 'Cleric') {
-            // Find all allies within range (4 tiles) who are wounded
-            const allies = Object.values(placedUnits).filter(u => u.faction === attacker.faction && u.id !== attacker.id && u.currentHp > 0 && u.currentHp < u.hp);
-            let nearestWounded = null;
-            let minDist = Infinity;
-            for (const ally of allies) {
-                const dist = Math.abs(attacker.row - ally.row) + Math.abs(attacker.col - ally.col);
-                if (dist <= 4 && (nearestWounded === null || ally.currentHp / ally.hp < nearestWounded.currentHp / nearestWounded.hp)) {
-                    nearestWounded = ally;
-                    minDist = dist;
-                }
-            }
-            if (nearestWounded) {
-                // Heal the most injured nearby ally
-                const healAmount = 10;
-                nearestWounded.currentHp = Math.min(nearestWounded.hp, nearestWounded.currentHp + healAmount);
-                if (nearestWounded.healthBar) updateHealthBar(nearestWounded, nearestWounded.healthBar);
-                // Visuals: heart + flash-heal
-                triggerVisualEffect(nearestWounded, 'flash-heal');
-                // Optionally, show a heart icon
-                const tile = document.getElementById(`tile-${nearestWounded.row}-${nearestWounded.col}`);
-                if (tile) {
-                    const heart = document.createElement('div');
-                    heart.textContent = '❤';
-                    heart.style.position = 'absolute';
-                    heart.style.left = '50%';
-                    heart.style.top = '10%';
-                    heart.style.transform = 'translate(-50%, 0)';
-                    heart.style.fontSize = '1.2em';
-                    heart.style.color = '#f06292';
-                    heart.style.pointerEvents = 'none';
-                    tile.appendChild(heart);
-                    setTimeout(() => heart.remove(), 700);
-                }
-                logMessage(`${attacker.name} uses Holy Mend! Heals ${nearestWounded.name} for ${healAmount} HP.`, 'spell', true, attacker.faction);
-                setTimeout(() => {
-                    if (typeof processNextUnitAction === 'function') processNextUnitAction();
-                }, 500);
-                return true;
-            }
-            // If no wounded ally, proceed to normal attack below
         }
         // Special move check
         let skipNormalAttack = false;
@@ -1005,8 +963,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const damage = Math.max(1, attacker.attack - target.defense);
         const isCrit = Math.random() < 0.1; // 10% chance for critical hit
         const finalDamage = isCrit ? damage * 2 : damage;
-        if (attacker.name === "Wizard" || attacker.name === "Shaman") {
-            // Wizard's and Shaman's splash damage attack
+        if (attacker.name === "Wizard") {
+            // Wizard's splash damage attack
             const affectedUnits = getUnitsInArea(target.row, target.col);
             logMessage(fillTemplate(randomTemplate('spell'), { attacker: attacker.name }), 'spell', true, attacker.faction);
             logFlavorMessage('spell', attacker);
@@ -1097,10 +1055,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         console.log(`Marked unit as defeated: ${unit.id}`);
         // Actual removal from placedUnits might happen at end of turn or start of next
-        triggerVisualEffect(unit, 'fade-out');
-        setTimeout(() => {
-            // ... existing removal logic ...
-        }, 600);
     }
 
     function flashElement(element, className, duration = 300) {
@@ -1140,21 +1094,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             // Start the next turn after a delay
             battleTimeout = setTimeout(startNewTurn, TURN_START_DELAY);
-            return;
-        }
-
-        // Debug log for unit processing
-        if (unit) {
-            console.log(`Processing unit: ${unit.name} (${unit.id}), skipNextTurn: ${unit.skipNextTurn}`);
-        }
-
-        // Skip turn if skipNextTurn is set
-        if (unit && unit.skipNextTurn) {
-            unit.skipNextTurn = false;
-            logMessage(`${unit.name} is delayed and skips this turn!`, 'important', false, unit.faction);
-            console.log(`Unit ${unit.name} (${unit.id}) is skipping turn due to skipNextTurn.`);
-            currentUnitIndex++;
-            battleTimeout = setTimeout(processNextUnitAction, ACTION_DELAY);
             return;
         }
 
@@ -1225,12 +1164,21 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!hordeUnitsAlive && crownUnitsAlive) {
             message = "Victory!";
             victory = true;
+            if (gameState.mode === 'campaign') {
+                handleCampaignVictory();
+            }
         } else if (!crownUnitsAlive && hordeUnitsAlive) {
             message = "Defeat!";
             victory = true;
+            if (gameState.mode === 'campaign') {
+                handleCampaignDefeat();
+            }
         } else if (!crownUnitsAlive && !hordeUnitsAlive && turnNumber > 0) { // Only declare draw after turn 0
             message = "Mutual Annihilation!";
             victory = true;
+            if (gameState.mode === 'campaign') {
+                handleCampaignDefeat();
+            }
         }
 
         if (victory) {
@@ -1248,502 +1196,35 @@ document.addEventListener("DOMContentLoaded", () => {
         return false;
     }
 
-    function runBattleSimulation() {
-        if (battleTimeout) clearTimeout(battleTimeout);
-        // Initial check in case one side starts empty
-        if (checkVictory(true)) return; 
-        // Start the first turn
-        startNewTurn();
+    function handleCampaignVictory() {
+        // Save surviving units
+        campaignState.survivingUnits = Object.values(placedUnits)
+            .filter(u => u && u.faction === 'crown' && u.currentHp > 0)
+            .map(u => ({
+                ...u,
+                currentHp: u.currentHp,
+                isHero: u.isHero
+            }));
+
+        // Show campaign victory modal
+        showCampaignVictoryModal();
     }
 
-    function setActiveUnit(unitId) {
-        // Remove .unit-active from all units
-        document.querySelectorAll('.unit').forEach(u => u.classList.remove('unit-active'));
-        // Add to the current unit
-        const el = document.getElementById(unitId);
-        if (el) el.classList.add('unit-active');
+    function handleCampaignDefeat() {
+        // Reset campaign state
+        campaignState.currentLevel = 1;
+        campaignState.survivingUnits = [];
+        campaignState.defeatedUnits = [];
+        campaignState.totalHeroes = 0;
+        campaignState.playerPoints = 1000;
     }
 
-    function pulseUnit(unitId, pulseClass) {
-        const el = document.getElementById(unitId);
-        if (el) {
-            el.classList.add(pulseClass);
-            setTimeout(() => el.classList.remove(pulseClass), 700);
-        }
+    function showCampaignVictoryModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `<div class="modal-content"><h2>Victory!</h2><p>You have completed this campaign level.</p></div>`;
+        document.body.appendChild(modal);
     }
 
-    // Helper to get direction index for 8-way arrows
-    function getDirectionIndex(dx, dy) {
-        // atan2 octant: 0=E, 1=NE, 2=N, 3=NW, 4=W, 5=SW, 6=S, 7=SE
-        // user order:   0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW
-        const angle = Math.atan2(-dy, dx); // negative dy because y increases downward
-        let octant = Math.round(8 * angle / (2 * Math.PI) + 8) % 8;
-        // Map standard octant to user order
-        const map = [2, 1, 0, 7, 6, 5, 4, 3];
-        return map[octant];
-    }
-
-    function launchProjectile(fromTile, toTile, type) {
-        if (!fromTile || !toTile) return;
-        const boardRect = fromTile.parentElement.getBoundingClientRect();
-        const fromRect = fromTile.getBoundingClientRect();
-        const toRect = toTile.getBoundingClientRect();
-        const proj = document.createElement('div');
-        proj.className = 'projectile projectile-' + type;
-        // Position at center of fromTile
-        proj.style.left = (fromRect.left - boardRect.left + fromRect.width / 2 - 4) + 'px';
-        proj.style.top = (fromRect.top - boardRect.top + fromRect.height / 2 - 4) + 'px';
-        proj.style.position = 'absolute';
-        proj.style.transition = 'transform 0.28s linear';
-        // Directional arrow sprite logic
-        if (type === 'arrow') {
-            // Get grid positions from tile IDs
-            const fromRow = parseInt(fromTile.dataset.row);
-            const fromCol = parseInt(fromTile.dataset.col);
-            const toRow = parseInt(toTile.dataset.row);
-            const toCol = parseInt(toTile.dataset.col);
-            const dx = toCol - fromCol;
-            const dy = toRow - fromRow;
-            const dirIdx = getDirectionIndex(dx, dy);
-            const arrowImg = `img/arrow${dirIdx}.png`;
-            console.log(`Arrow direction: ${dirIdx}, image: ${arrowImg}, dx: ${dx}, dy: ${dy}`);
-            proj.style.backgroundImage = `url('${arrowImg}')`;
-            proj.style.backgroundSize = 'cover';
-            proj.style.backgroundRepeat = 'no-repeat';
-            proj.style.backgroundPosition = 'center';
-            proj.style.backgroundColor = 'transparent';
-            proj.style.width = '16px';
-            proj.style.height = '16px';
-            proj.style.borderRadius = '0';
-            proj.style.boxShadow = 'none';
-        }
-        fromTile.parentElement.appendChild(proj);
-        // Calculate translation
-        const dx = (toRect.left - fromRect.left) + (toRect.width - fromRect.width) / 2;
-        const dy = (toRect.top - fromRect.top) + (toRect.height - fromRect.height) / 2;
-        setTimeout(() => {
-            proj.style.transform = `translate(${dx}px, ${dy}px)`;
-        }, 10);
-        setTimeout(() => {
-            proj.remove();
-        }, 350);
-    }
-
-    // --- Initialization ---
-    if (startGameBtn) {
-        console.log("Adding click listener to start button");
-        startGameBtn.addEventListener("click", () => {
-            console.log("Start button clicked");
-            if (welcomeScreen) {
-                welcomeScreen.classList.add("fade-out");
-                setTimeout(() => {
-                    welcomeScreen.classList.remove("active");
-                    welcomeScreen.style.display = "none";
-                }, 700); // Match CSS transition
-            }
-            if (gameArea) {
-                console.log("Adding active class to game area");
-                gameArea.classList.add("active");
-                playerPoints = 1000;
-                gameLog = [];
-                if(logArea) logArea.innerHTML = "";
-                createGameBoard();
-                createControls();
-                console.log("Game started! Player points: ", playerPoints);
-            }
-        });
-    } else {
-        console.error("Start button not found!");
-    }
-
-    // Show Panel button logic
-    const showPanelBtn = document.getElementById('show-panel-btn');
-    if (showPanelBtn) {
-        showPanelBtn.addEventListener('click', () => {
-            const sidebar = document.querySelector('.sidebar');
-            if (sidebar) {
-                sidebar.classList.remove('hidden');
-                showPanelBtn.style.display = 'none';
-            }
-        });
-    }
-
-    // --- Robust Reset to Welcome Screen ---
-    function resetGameToWelcome() {
-        // Clear any pending timeouts/intervals
-        if (battleTimeout) {
-            clearTimeout(battleTimeout);
-            battleTimeout = null;
-        }
-        
-        // Reset all game state variables
-        selectedUnitType = null;
-        playerPoints = 1000;
-        placedUnits = {};
-        gameLog = [];
-        battleStarted = false;
-        turnNumber = 0;
-        currentUnitIndex = 0;
-        currentTurnUnitOrder = [];
-        if (typeof gameState !== 'undefined') {
-            gameState.deploymentPhase = null;
-            gameState.mode = null;
-        }
-        
-        // Reset UI elements
-        const welcomeScreen = document.getElementById('welcome-screen');
-        const gameArea = document.getElementById('game-area');
-        const gameBoard = document.getElementById('game-board');
-        const logArea = document.getElementById('log-area');
-        const controlsArea = document.getElementById('controls-area');
-        const unitStatusPanel = document.getElementById('unit-status-panel');
-        const gameOverOverlay = document.getElementById('game-over-overlay');
-        const sidebar = document.querySelector('.sidebar');
-        const showPanelBtn = document.getElementById('show-panel-btn');
-        
-        // Show welcome screen and hide game area
-        if (welcomeScreen) {
-            welcomeScreen.classList.add('active');
-            welcomeScreen.style.display = 'flex';
-            welcomeScreen.classList.remove('fade-out');
-        }
-        if (gameArea) {
-            gameArea.classList.remove('active');
-            gameArea.style.display = 'none';
-        }
-        
-        // Clear all UI elements
-        if (gameBoard) gameBoard.innerHTML = '';
-        if (logArea) logArea.innerHTML = '';
-        if (controlsArea) controlsArea.innerHTML = '';
-        if (unitStatusPanel) unitStatusPanel.innerHTML = '';
-        
-        // Reset overlays and panels
-        if (gameOverOverlay) {
-            gameOverOverlay.classList.remove('active');
-            gameOverOverlay.style.display = 'none';
-        }
-        if (sidebar) sidebar.classList.add('hidden');
-        if (showPanelBtn) showPanelBtn.style.display = 'none';
-        
-        // Remove any lingering event listeners from tiles
-        document.querySelectorAll('.tile').forEach(tile => {
-            tile.replaceWith(tile.cloneNode(true));
-        });
-        
-        // Reset points display
-        if (pointsDisplay) {
-            pointsDisplay.textContent = 'Points: 1000';
-        }
-        
-        // Reset unit stats display
-        if (unitStatsDisplay) {
-            unitStatsDisplay.innerHTML = 'Select a unit to see stats.';
-        }
-        
-        // Force a reflow to ensure CSS transitions work
-        if (welcomeScreen) {
-            welcomeScreen.offsetHeight;
-        }
-    }
-
-    // Play Again button logic
-    const playAgainBtn = document.getElementById('play-again-btn');
-    if (playAgainBtn) {
-        playAgainBtn.addEventListener('click', () => {
-            resetGameToWelcome();
-        });
-    }
-
-    // --- Simple Unit Status Panel for Crown and Horde Units in 2-Player Mode ---
-    function updateUnitStatusPanel() {
-        const panel = document.getElementById('unit-status-panel');
-        if (!panel) return;
-        if (gameState.mode === 'two-player') {
-            const crownUnits = Object.values(placedUnits).filter(u => u.faction === 'crown' && u.currentHp > 0);
-            const hordeUnits = Object.values(placedUnits).filter(u => u.faction === 'horde' && u.currentHp > 0);
-            if (crownUnits.length === 0 && hordeUnits.length === 0) {
-                panel.innerHTML = '<div style="color:#bbb; text-align:center;">No units alive.</div>';
-                return;
-            }
-            panel.innerHTML = `
-                <div><strong>Crown Units</strong></div>
-                ${crownUnits.map(unit => {
-                    const pct = unit.currentHp / unit.hp;
-                    let statusClass = 'status-healthy';
-                    if (pct <= 0.3) statusClass = 'status-critical';
-                    else if (pct <= 0.6) statusClass = 'status-wounded';
-                    
-                    // Get status effects
-                    const statusEffects = [];
-                    if (unit.skipNextTurn) {
-                        if (unit.row !== undefined && unit.col !== undefined) {
-                            const tile = document.getElementById(`tile-${unit.row}-${unit.col}`);
-                            if (tile && tile.dataset.terrain === 'water') {
-                                statusEffects.push('<span class="status-effect-icon status-effect-water" title="Slowed by water"></span>');
-                            } else {
-                                statusEffects.push('<span class="status-effect-icon status-effect-stun" title="Stunned"></span>');
-                            }
-                        }
-                    }
-                    if (unit.isBeingAttacked) {
-                        statusEffects.push('<span class="status-effect-icon status-effect-spell" title="Under spell effect"></span>');
-                    }
-                    
-                    return `
-                        <div class="unit-status-entry">
-                            <strong>${unit.name}</strong> (${unit.symbol})<br>
-                            <span class="${statusClass}">${unit.currentHp} / ${unit.hp} HP</span>
-                            <div class="status-effects">${statusEffects.join('')}</div>
-                        </div>
-                    `;
-                }).join('')}
-                <div style="margin-top:10px;"><strong>Horde Units</strong></div>
-                ${hordeUnits.map(unit => {
-                    const pct = unit.currentHp / unit.hp;
-                    let statusClass = 'status-healthy';
-                    if (pct <= 0.3) statusClass = 'status-critical';
-                    else if (pct <= 0.6) statusClass = 'status-wounded';
-                    
-                    // Get status effects
-                    const statusEffects = [];
-                    if (unit.skipNextTurn) {
-                        if (unit.row !== undefined && unit.col !== undefined) {
-                            const tile = document.getElementById(`tile-${unit.row}-${unit.col}`);
-                            if (tile && tile.dataset.terrain === 'water') {
-                                statusEffects.push('<span class="status-effect-icon status-effect-water" title="Slowed by water"></span>');
-                            } else {
-                                statusEffects.push('<span class="status-effect-icon status-effect-stun" title="Stunned"></span>');
-                            }
-                        }
-                    }
-                    if (unit.isBeingAttacked) {
-                        statusEffects.push('<span class="status-effect-icon status-effect-spell" title="Under spell effect"></span>');
-                    }
-                    
-                    return `
-                        <div class="unit-status-entry">
-                            <strong>${unit.name}</strong> (${unit.symbol})<br>
-                            <span class="${statusClass}">${unit.currentHp} / ${unit.hp} HP</span>
-                            <div class="status-effects">${statusEffects.join('')}</div>
-                        </div>
-                    `;
-                }).join('')}
-            `;
-        } else {
-            // Single player: show only Crown units
-            const crownUnits = Object.values(placedUnits).filter(u => u.faction === 'crown' && u.currentHp > 0);
-            if (crownUnits.length === 0) {
-                panel.innerHTML = '<div style="color:#bbb; text-align:center;">No units alive.</div>';
-                return;
-            }
-            panel.innerHTML = crownUnits.map(unit => {
-                const pct = unit.currentHp / unit.hp;
-                let statusClass = 'status-healthy';
-                if (pct <= 0.3) statusClass = 'status-critical';
-                else if (pct <= 0.6) statusClass = 'status-wounded';
-                
-                // Get status effects
-                const statusEffects = [];
-                if (unit.skipNextTurn) {
-                    if (unit.row !== undefined && unit.col !== undefined) {
-                        const tile = document.getElementById(`tile-${unit.row}-${unit.col}`);
-                        if (tile && tile.dataset.terrain === 'water') {
-                            statusEffects.push('<span class="status-effect-icon status-effect-water" title="Slowed by water"></span>');
-                        } else {
-                            statusEffects.push('<span class="status-effect-icon status-effect-stun" title="Stunned"></span>');
-                        }
-                    }
-                }
-                if (unit.isBeingAttacked) {
-                    statusEffects.push('<span class="status-effect-icon status-effect-spell" title="Under spell effect"></span>');
-                }
-                
-                return `
-                    <div class="unit-status-entry">
-                        <strong>${unit.name}</strong> (${unit.symbol})<br>
-                        <span class="${statusClass}">${unit.currentHp} / ${unit.hp} HP</span>
-                        <div class="status-effects">${statusEffects.join('')}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-    }
-
-    // --- Panel Toggle Logic ---
-    function setPanelCollapsed(panelId, collapsed) {
-        const panel = document.getElementById(panelId);
-        const btn = panel && panel.querySelector('.panel-toggle-btn');
-        if (!panel || !btn) return;
-        if (collapsed) {
-            panel.classList.add('collapsed');
-            btn.textContent = '+';
-        } else {
-            panel.classList.remove('collapsed');
-            btn.textContent = '−';
-        }
-    }
-    function setupPanelToggle(panelId) {
-        const panel = document.getElementById(panelId);
-        const btn = panel && panel.querySelector('.panel-toggle-btn');
-        if (!panel || !btn) return;
-        btn.addEventListener('click', () => {
-            const collapsed = panel.classList.toggle('collapsed');
-            btn.textContent = collapsed ? '+' : '−';
-        });
-    }
-    // Set default panel states for each phase
-    function setPanelDefaults(phase) {
-        // phase: 'deploy', 'battle', 'gameover'
-        setPanelCollapsed('unit-status-panel', phase === 'deploy');
-        setPanelCollapsed('controls-area', phase !== 'deploy');
-        setPanelCollapsed('log-area', false);
-    }
-    // Setup toggles on DOMContentLoaded
-    setupPanelToggle('unit-status-panel');
-    setupPanelToggle('controls-area');
-    setupPanelToggle('log-area');
-    // Set initial state for deployment phase
-    setPanelDefaults('deploy');
-
-    // --- Hero Promotion System ---
-    const HERO_NAMES = [
-        "Varn the Ash-Blooded", "Serra Ironheart", "Durnan the Relentless", "Kael of the Dawn", "Mira Stormblade", "Thane the Unbroken", "Lira the Swift", "Bramm the Stalwart", "Eira the Flame", "Garrick the Wolf", "Sable the Silent", "Torin the Just"
-    ];
-    function getRandomHeroName() {
-        return HERO_NAMES[Math.floor(Math.random() * HERO_NAMES.length)];
-    }
-    function promoteToHero(unit) {
-        if (unit.isHero) return;
-        unit.isHero = true;
-        unit.level = 2;
-        unit.heroName = getRandomHeroName();
-        unit.attack += 2;
-        unit.hp += 5;
-        unit.currentHp += 5;
-        // Visual: add star icon, gold glow, tooltip
-        const unitEl = document.getElementById(unit.id);
-        if (unitEl) {
-            // Add star icon if not present
-            if (!unitEl.querySelector('.hero-star')) {
-                const star = document.createElement('span');
-                star.className = 'hero-star';
-                star.textContent = '★';
-                star.style.position = 'absolute';
-                star.style.top = '2px';
-                star.style.right = '6px';
-                star.style.fontSize = '1.2em';
-                star.style.color = '#ffd700';
-                star.style.textShadow = '0 0 6px #fff176, 0 0 2px #fff';
-                star.style.pointerEvents = 'none';
-                unitEl.appendChild(star);
-            }
-            unitEl.classList.add('hero-glow');
-            unitEl.title = unit.heroName;
-        }
-        // Log dramatic message
-        logMessage(`⚔ A HERO HAS EMERGED: ${unit.heroName} rises from the ranks!`, 'important', true, unit.faction);
-    }
-    function heroNameOr(unit) {
-        return unit.isHero && unit.heroName ? unit.heroName : unit.name;
-    }
-    // Patch: Track stats for each unit
-    function ensureUnitStats(unit) {
-        if (unit.kills === undefined) unit.kills = 0;
-        if (unit.totalDamage === undefined) unit.totalDamage = 0;
-        if (unit.turnsSurvived === undefined) unit.turnsSurvived = 0;
-        if (unit.hasTakenDamage === undefined) unit.hasTakenDamage = false;
-    }
-    // Patch: In createGameBoard and generateEnemyUnits, ensure stats for each unit
-    // Patch: In attackUnit, increment stats
-    // Patch: In processNextUnitAction, increment turnsSurvived
-    // Patch: At end of each turn (in startNewTurn), check for hero promotion
-    function checkHeroPromotion() {
-        Object.values(placedUnits).forEach(unit => {
-            ensureUnitStats(unit);
-            if (!unit.isHero && (
-                unit.totalDamage >= 20 ||
-                unit.kills >= 2 ||
-                (unit.turnsSurvived >= 6 && unit.hasTakenDamage)
-            )) {
-                promoteToHero(unit);
-            }
-        });
-    }
-    // Patch: In startNewTurn, after incrementing turnsSurvived, call checkHeroPromotion
-    // Patch: In logMessage, use heroNameOr(unit) for unit names
-
-    // Welcome screen mode selection logic
-    const singlePlayerBtn = document.getElementById('single-player-btn');
-    const twoPlayerBtn = document.getElementById('two-player-btn');
-
-    if (singlePlayerBtn) {
-        singlePlayerBtn.addEventListener('click', () => {
-            console.log('Single player mode selected');
-            gameState.mode = 'single';
-            if (welcomeScreen) {
-                welcomeScreen.classList.add("fade-out");
-                setTimeout(() => {
-                    welcomeScreen.classList.remove("active");
-                    welcomeScreen.style.display = "none";
-                }, 700);
-            }
-            if (gameArea) {
-                gameArea.classList.add("active");
-                playerPoints = 1000;
-                gameLog = [];
-                if(logArea) logArea.innerHTML = "";
-                createGameBoard();
-                createControls();
-            }
-        });
-    }
-
-    if (twoPlayerBtn) {
-        twoPlayerBtn.addEventListener('click', () => {
-            console.log('Two player mode selected');
-            gameState.mode = 'two-player';
-            if (welcomeScreen) {
-                welcomeScreen.classList.add("fade-out");
-                setTimeout(() => {
-                    welcomeScreen.classList.remove("active");
-                    welcomeScreen.style.display = "none";
-                }, 700);
-            }
-            if (gameArea) {
-                gameArea.classList.add("active");
-                playerPoints = 1000;
-                gameLog = [];
-                if(logArea) logArea.innerHTML = "";
-                createGameBoard();
-                createControls();
-                setupTwoPlayerDeployment();
-            }
-        });
-    }
-
-    // --- Deployment Modal Logic ---
-    function showDeploymentModal(message, showButton = true, buttonText = 'OK', onClick = null) {
-        const modal = document.getElementById('deployment-modal');
-        if (!modal) return;
-        modal.innerHTML = `<div>${message}</div>`;
-        if (showButton) {
-            const btn = document.createElement('button');
-            btn.textContent = buttonText;
-            btn.style.marginTop = '18px';
-            btn.style.width = '100%';
-            btn.style.fontSize = '1.1em';
-            btn.onclick = () => {
-                modal.style.display = 'none';
-                if (onClick) onClick();
-            };
-            modal.appendChild(btn);
-        }
-        modal.style.display = 'flex';
-    }
-    function hideDeploymentModal() {
-        const modal = document.getElementById('deployment-modal');
-        if (modal) modal.style.display = 'none';
-    }
+    // ... rest of the existing code ...
 });
-

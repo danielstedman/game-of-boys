@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Game of Boys</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="welcome-screen" class="screen active">
+        <h1>Welcome to Game of Boys</h1>
+        <div class="welcome-intro">The sun rises over the blood-soaked fields of war.</div>
+        <div id="mode-select-btns">
+            <button id="single-player-btn">Single Player</button>
+            <button id="two-player-btn">2-Player Mode</button>
+            <button id="campaign-btn">Get the Amulet</button>
+        </div>
+    </div>
+    <div id="deployment-modal" style="display:none;"></div>
+
+    <div id="game-area" class="screen">
+        <div id="game-board-container">
+            <div id="game-board"></div>
+            <div id="game-over-overlay" class="overlay">
+                <h2 id="game-over-message"></h2>
+                <button id="play-again-btn" style="margin-top: 20px; font-size: 1.1em; padding: 10px 24px; border-radius: 6px; border: 2px solid #888; background: #eee; color: #333; cursor: pointer;">Play Again</button>
+            </div>
+        </div>
+        <div id="log-area" style="position: relative;">
+            <button id="toggle-log" class="panel-toggle-btn" aria-label="Toggle Log Panel">−</button>
+            <!-- Game log -->
+        </div>
+        <div id="unit-status-panel"></div>
+        <!-- Sidebar container for desktop layout -->
+        <div class="sidebar">
+            <div id="controls-area" style="position: relative;">
+                <button id="toggle-controls" class="panel-toggle-btn" aria-label="Toggle Controls Panel">−</button>
+                <!-- Unit selection, points, stats, start button -->
+            </div>
+        </div>
+        <button id="show-panel-btn" style="display:none; margin-left: 10px;">Show Panel</button>
+    </div>
+
+    <!-- Load units.js first, then script.js -->
+    <script src="units.js" type="module"></script>
+    <script src="script.js" type="module" defer></script>
+</body>
+</html>
