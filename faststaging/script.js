@@ -1010,12 +1010,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const affectedUnits = getUnitsInArea(target.row, target.col);
             logMessage(fillTemplate(randomTemplate('spell'), { attacker: attacker.name }), 'spell', true, attacker.faction);
             logFlavorMessage('spell', attacker);
-            // Create flame effect on all affected tiles
+            // Create visual effect on all affected tiles
             for (let r = Math.max(0, target.row - 1); r <= Math.min(BOARD_SIZE - 1, target.row + 1); r++) {
                 for (let c = Math.max(0, target.col - 1); c <= Math.min(BOARD_SIZE - 1, target.col + 1); c++) {
                     const tile = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
                     if (tile) {
-                        createFlameEffect(tile);
+                        if (attacker.name === 'Wizard') {
+                            createFlameEffect(tile);
+                        } else if (attacker.name === 'Shaman') {
+                            createBlueBlastEffect(tile);
+                        }
                         if (tile.dataset.unitOnTile) pulseUnit(tile.dataset.unitOnTile, 'unit-pulse-spell');
                     }
                 }
@@ -1744,6 +1748,24 @@ document.addEventListener("DOMContentLoaded", () => {
     function hideDeploymentModal() {
         const modal = document.getElementById('deployment-modal');
         if (modal) modal.style.display = 'none';
+    }
+
+    // Add this helper function for the Shaman's blue blast effect
+    function createBlueBlastEffect(tile) {
+        const blast = document.createElement('div');
+        blast.style.position = 'absolute';
+        blast.style.left = '0';
+        blast.style.top = '0';
+        blast.style.width = '100%';
+        blast.style.height = '100%';
+        blast.style.pointerEvents = 'none';
+        blast.style.backgroundImage = "url('img/blueblast.png')";
+        blast.style.backgroundSize = 'cover';
+        blast.style.backgroundRepeat = 'no-repeat';
+        blast.style.backgroundPosition = 'center';
+        blast.style.zIndex = '10';
+        tile.appendChild(blast);
+        setTimeout(() => blast.remove(), 500);
     }
 });
 
