@@ -1105,4 +1105,84 @@ body {
     color: transparent !important;
     text-indent: -9999px;
 }
+.unit-paladin {
+    background-image: url('img/paladin.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-crossbowman {
+    background-image: url('img/crossbowman.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-cleric {
+    background-image: url('img/cleric.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-scout {
+    background-image: url('img/scout.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-goblin {
+    background-image: url('img/goblin.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-shaman {
+    background-image: url('img/shaman.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-berserker {
+    background-image: url('img/berserker.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-wolfrider {
+    background-image: url('img/wolfrider.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-imp {
+    background-image: url('img/imp.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
+.unit-bloodboy {
+    background-image: url('img/bloodboy.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    color: transparent !important;
+    text-indent: -9999px;
+}
 
