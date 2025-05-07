@@ -33,10 +33,27 @@ body {
 }
 
 #welcome-screen {
-    background: linear-gradient(120deg, #23272b 0%, #18191c 100%);
-    animation: welcome-pulse 8s ease-in-out infinite;
-    transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1);
-    opacity: 1;
+    background-color: #23272b;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+    background-repeat: repeat;
+    border: 2px solid #888;
+    border-radius: 12px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.25);
+    padding: 36px 16px 32px 16px;
+    font-family: inherit;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 280px;
+    min-height: 340px;
+    position: relative;
+    max-width: 95vw;
+    margin: 0 auto;
 }
 #welcome-screen.fade-out {
     opacity: 0;
@@ -47,17 +64,42 @@ body {
     50% { background-position: 100% 50%; background-color: #23272b; }
     100% { background-position: 0% 50%; }
 }
-.welcome-intro {
-    font-size: 1.2em;
-    color: #eee;
-    margin-bottom: 36px;
-    margin-top: 18px;
-    font-style: italic;
-    letter-spacing: 0.5px;
+.welcome-title {
+    font-size: 2em;
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 1.5px;
+    margin-bottom: 18px;
     text-shadow: 0 2px 8px #111;
     text-align: center;
 }
-#start-game-btn {
+.welcome-units-row {
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.welcome-unit-sprite {
+    width: 32px;
+    height: 32px;
+    image-rendering: pixelated;
+    display: inline-block;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.welcome-unit-wizard {
+    background-image: url('img/wizard.png');
+}
+.welcome-unit-troll {
+    background-image: url('img/troll.png');
+}
+.welcome-unit-knight {
+    background-image: url('img/knight.png');
+}
+#welcome-screen button {
     width: 180px;
     height: 54px;
     font-size: 1.2em;
@@ -70,11 +112,36 @@ body {
     letter-spacing: 1px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.10);
     transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+    margin-top: 18px;
 }
-#start-game-btn:hover {
+#welcome-screen button:hover {
     background: #fffbe7;
     color: #111;
     box-shadow: 0 4px 18px rgba(255,255,255,0.08);
+}
+@media (max-width: 600px) {
+    #welcome-screen {
+        min-width: 0;
+        padding: 18px 2vw 18px 2vw;
+        max-width: 99vw;
+    }
+    .welcome-title {
+        font-size: 1.3em;
+    }
+    .welcome-units-row {
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .welcome-unit-sprite {
+        width: 24px;
+        height: 24px;
+    }
+    #welcome-screen button {
+        width: 98vw;
+        max-width: 220px;
+        font-size: 1em;
+        height: 44px;
+    }
 }
 
 /* --- Game Area Layout --- */
