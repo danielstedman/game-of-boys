@@ -130,6 +130,22 @@ const UNITS = {
                 chance: 0.10,
                 effect: "blindingDust"
             }
+        },
+        cavalry: {
+            name: "Cavalry",
+            symbol: "V",
+            cost: 130,
+            hp: 35,
+            attack: 10,
+            defense: 3,
+            range: 1,
+            speed: 2,
+            specialMove: {
+                name: "Charge",
+                description: "If an enemy is in a straight line within 3 tiles (no blocking units), Cavalry charges: +10 melee damage if it will kill. If not, moves and attacks normally (same turn). Visual streak effect.",
+                chance: 0.15,
+                effect: "charge"
+            }
         }
     },
     

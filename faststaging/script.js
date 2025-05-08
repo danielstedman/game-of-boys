@@ -63,46 +63,157 @@ document.addEventListener("DOMContentLoaded", () => {
         important: 'log-flash-important'
     };
 
-    // Message templates for log events
+    // --- Expanded and dynamic log templates ---
     const LOG_TEMPLATES = {
         attack: [
-            '[A] strikes [D] for [DMG]!',
-            '[A] hacks at [D], dealing [DMG]!',
-            '[A] attacks — blood sprays from [D]!',
-            '[A] swings at [D] and hits for [DMG]!',
-            '[A] lands a blow on [D] ([DMG] damage)!'
+            '[A] strikes at [D].',
+            '[A] slashes [D] with a blade.',
+            '[A] lunges at [D], weapon ready.',
+            '[A] delivers a crushing blow to [D].',
+            '[A] attacks [D] with deadly precision.',
+            '[A] swings at [D] and connects.'
         ],
         move: [
-            '[U] advances.',
-            '[U] moves forward.',
-            '[U] charges ahead.',
-            '[U] repositions.',
-            '[U] shifts on the battlefield.'
+            '[U] advances cautiously.',
+            '[U] moves into position.',
+            '[U] steps forward.',
+            '[U] circles the enemy.',
+            '[U] closes the distance.'
         ],
         hold: [
-            '[U] holds position.',
-            '[U] stands their ground.',
+            '[U] holds ground.',
             '[U] waits for an opening.',
-            '[U] braces for impact.'
+            '[U] stands ready.',
+            '[U] braces for attack.'
         ],
         death: [
-            '[D] falls, their shield shattered!',
-            '[D] screams as they collapse!',
-            '[D] is torn apart in a burst of gore!',
-            '[D] drops to the ground, defeated!',
-            'A silence falls as [D] is slain!'
+            '[D] falls to the ground, defeated.',
+            '[D] collapses from wounds.',
+            '[D] is slain.',
+            '[D] breathes their last.'
         ],
         spell: [
-            '[A] unleashes a torrent of magic!',
-            '[A] casts a devastating spell!',
-            'Arcane fire erupts from [A]!',
-            '[A] conjures a blast of energy!'
+            '[A] utters an incantation.',
+            '[A] releases a burst of magic.',
+            '[A] calls forth arcane power.',
+            '[A] gestures and a spell erupts.'
         ],
         crit: [
-            '[A] lands a CRITICAL HIT on [D] for [DMG]!',
-            '[A] delivers a devastating blow to [D] ([DMG] CRIT)!',
-            '[A] strikes true — [D] is rocked by a critical hit!'
+            '[A] lands a devastating blow on [D]!',
+            '[A] strikes a vital spot!',
+            '[A] delivers a critical hit to [D]!',
+            '[A] wounds [D] grievously!'
         ]
+    };
+
+    // --- Nicknames and titles ---
+    const UNIT_NICKNAMES = [
+        'the Brave', 'the Cowardly', 'the Swift', 'the Unlucky', 'the Bold', 'the Sassy', 'the Mysterious', 'the Unstoppable', 'the Sleepy', 'the Daring', 'the Reluctant', 'the Lucky', 'the Fearless', 'the Cunning', 'the Loud', 'the Silent'
+    ];
+    function getUnitNickname(unit) {
+        if (unit.isHero && unit.heroName) return unit.heroName;
+        if (Math.random() < 0.15) {
+            // 15% chance to use a nickname
+            return `${unit.name} ${UNIT_NICKNAMES[Math.floor(Math.random() * UNIT_NICKNAMES.length)]}`;
+        }
+        return unit.name;
+    }
+
+    // --- Narrator and rare event logic ---
+    const NARRATOR_LINES = [
+        'The gods watch with interest...',
+        'A hush falls over the battlefield.',
+        'Somewhere, a bard is already writing a song about this.',
+        'The ground trembles with anticipation.',
+        'A distant thunder rolls. Is it an omen?',
+        'The wind whispers: "Who will be victorious?"',
+        'A crow caws ominously.'
+    ];
+    function maybeNarratorLine() {
+        if (Math.random() < 0.03) { // 3% chance
+            return NARRATOR_LINES[Math.floor(Math.random() * NARRATOR_LINES.length)];
+        }
+        return null;
+    }
+
+    // --- Rare battle-related surprises ---
+    const RARE_BATTLE_EVENTS = [
+        'A stray arrow lands harmlessly in the mud.',
+        'A helmet rolls across the field.',
+        "A sudden gust of wind blows dust in everyone's eyes.",
+        'A frog hops between the combatants, undisturbed.',
+        'A banner falls, but is quickly raised again.',
+        'A mysterious figure is seen watching from afar.'
+    ];
+    function maybeRareBattleEvent() {
+        if (Math.random() < 0.01) { // 1% chance
+            return RARE_BATTLE_EVENTS[Math.floor(Math.random() * RARE_BATTLE_EVENTS.length)];
+        }
+        return null;
+    }
+
+    // --- Context-aware flavor (low health, kill streaks, etc.) ---
+    function logContextFlavor(unit) {
+        if (unit.currentHp > 0 && unit.currentHp < unit.hp * 0.25) {
+            logMessage(`${getUnitNickname(unit)} is barely standing!`, 'important', false, unit.faction);
+        }
+        if (unit.kills && unit.kills >= 3 && Math.random() < 0.3) {
+            logMessage(`${getUnitNickname(unit)} is on a rampage! (${unit.kills} kills)`, 'important', false, unit.faction);
+        }
+    }
+
+    // --- Patch logMessage to use new flavor logic ---
+    const originalLogMessage = logMessage;
+    logMessage = function(message, type = 'normal', isDramatic = false, faction = null) {
+        // Occasionally insert a narrator line
+        const narrator = maybeNarratorLine();
+        if (narrator) {
+            originalLogMessage(`🗣️ ${narrator}`, 'important', true);
+        }
+        // Occasionally insert a rare battle event
+        const rare = maybeRareBattleEvent();
+        if (rare) {
+            originalLogMessage(`🎲 ${rare}`, 'normal', false);
+        }
+        // Replace [A], [D], [U] with nicknames sometimes
+        message = message.replace(/\[A\]/g, (match, offset, str) => {
+            // Try to find attacker in context
+            if (window.lastAttacker) return getUnitNickname(window.lastAttacker);
+            return match;
+        });
+        message = message.replace(/\[D\]/g, (match, offset, str) => {
+            if (window.lastDefender) return getUnitNickname(window.lastDefender);
+            return match;
+        });
+        message = message.replace(/\[U\]/g, (match, offset, str) => {
+            if (window.lastUnit) return getUnitNickname(window.lastUnit);
+            return match;
+        });
+        return originalLogMessage(message, type, isDramatic, faction);
+    };
+
+    // --- Patch fillTemplate to set lastAttacker/Defender/Unit for nickname logic ---
+    const originalFillTemplate = fillTemplate;
+    fillTemplate = function(template, data) {
+        if (data.attackerObj) window.lastAttacker = data.attackerObj;
+        if (data.defenderObj) window.lastDefender = data.defenderObj;
+        if (data.unitObj) window.lastUnit = data.unitObj;
+        return originalFillTemplate(template, data);
+    };
+
+    // --- Patch attackUnit and moveUnit to call logContextFlavor ---
+    const originalAttackUnit = attackUnit;
+    attackUnit = async function(attacker, target) {
+        const result = await originalAttackUnit.apply(this, arguments);
+        if (attacker) logContextFlavor(attacker);
+        if (target) logContextFlavor(target);
+        return result;
+    };
+    const originalMoveUnit = moveUnit;
+    moveUnit = async function(unit, targetEnemy) {
+        const result = await originalMoveUnit.apply(this, arguments);
+        if (unit) logContextFlavor(unit);
+        return result;
     };
 
     // --- Game State for Mode Selection ---
@@ -679,7 +790,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Battle Logic (Sequential Actions) ---
 
     function getDistance(unit1, unit2) {
-        return Math.abs(unit1.row - unit2.row) + Math.abs(unit1.col - unit2.col);
+        const rowDiff = Math.abs(unit1.row - unit2.row);
+        const colDiff = Math.abs(unit1.col - unit2.col);
+        
+        // For melee units (range 1), only allow orthogonal attacks
+        if (unit1.range === 1) {
+            return rowDiff + colDiff;
+        }
+        
+        // For ranged units, use the maximum of row and column difference
+        // This means diagonal attacks count as 1 space of range
+        return Math.max(rowDiff, colDiff);
     }
 
     function findNearestEnemy(unit, allUnits) {
@@ -708,74 +829,97 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace('[U]', data.unitObj ? heroNameOr(data.unitObj) : (data.unit || ''));
     }
 
-    function moveUnit(unit, targetEnemy) {
-        let moved = false;
-        let currentMinDist = getDistance(unit, targetEnemy);
-        const maxMoves = unit.speed;
+    // Helper for delay
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-        // All 8 possible directions (orthogonal and diagonal)
+    // Pathfinding: BFS to find shortest path from (startRow, startCol) to (endRow, endCol)
+    function findPath(startRow, startCol, endRow, endCol, isBlocked) {
+        const queue = [];
+        const visited = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(false));
+        const prev = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+        queue.push({ r: startRow, c: startCol });
+        visited[startRow][startCol] = true;
         const directions = [
-            { r: 0, c: 1 },   // right
-            { r: 0, c: -1 },  // left
-            { r: 1, c: 0 },   // down
-            { r: -1, c: 0 },  // up
-            { r: 1, c: 1 },   // down-right
-            { r: 1, c: -1 },  // down-left
-            { r: -1, c: 1 },  // up-right
-            { r: -1, c: -1 }  // up-left
+            { r: 0, c: 1 }, { r: 0, c: -1 }, { r: 1, c: 0 }, { r: -1, c: 0 },
+            { r: 1, c: 1 }, { r: 1, c: -1 }, { r: -1, c: 1 }, { r: -1, c: -1 }
         ];
-
-        let movesMade = 0;
-        while (movesMade < maxMoves) {
-            let bestMoves = [];
-            let bestDist = currentMinDist;
-
-            // Check all possible moves
-            for (const dir of directions) {
-                const newRow = unit.row + dir.r;
-                const newCol = unit.col + dir.c;
-
-                // Skip if out of bounds
-                if (newRow < 0 || newRow >= BOARD_SIZE || newCol < 0 || newCol >= BOARD_SIZE) continue;
-
-                // Check if the target tile is occupied
-                const targetTile = document.getElementById(`tile-${newRow}-${newCol}`);
-                if (!targetTile || targetTile.dataset.unitOnTile) continue;
-
-                // Calculate distance to target
-                const dist = Math.abs(newRow - targetEnemy.row) + Math.abs(newCol - targetEnemy.col);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    bestMoves = [{ r: newRow, c: newCol }];
-                } else if (dist === bestDist) {
-                    bestMoves.push({ r: newRow, c: newCol });
+        while (queue.length > 0) {
+            const { r, c } = queue.shift();
+            if (r === endRow && c === endCol) {
+                // Reconstruct path
+                const path = [];
+                let curr = { r, c };
+                while (curr && (curr.r !== startRow || curr.c !== startCol)) {
+                    path.push(curr);
+                    curr = prev[curr.r][curr.c];
                 }
+                path.reverse();
+                return path;
             }
-
-            if (bestMoves.length === 0 || bestDist >= currentMinDist) break;
-
-            // Pick randomly among the best moves
-            const chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
-            const oldTileKey = `${unit.row}-${unit.col}`;
-            const newTileKey = `${chosenMove.r}-${chosenMove.c}`;
-            const oldTile = document.getElementById(`tile-${oldTileKey}`);
-            const newTile = document.getElementById(`tile-${newTileKey}`);
-            const unitElement = document.getElementById(unit.id);
-
-            if (oldTile && newTile && unitElement) {
-                unit.row = chosenMove.r;
-                unit.col = chosenMove.c;
-                delete oldTile.dataset.unitOnTile;
-                newTile.dataset.unitOnTile = unit.id;
-                newTile.appendChild(unitElement);
-                moved = true;
-                movesMade++;
-                currentMinDist = bestDist;
-            } else {
-                break;
+            for (const dir of directions) {
+                const nr = r + dir.r;
+                const nc = c + dir.c;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
+                if (visited[nr][nc]) continue;
+                if (isBlocked(nr, nc)) continue;
+                visited[nr][nc] = true;
+                prev[nr][nc] = { r, c };
+                queue.push({ r: nr, c: nc });
             }
         }
+        return null; // No path found
+    }
 
+    async function moveUnit(unit, targetEnemy) {
+        let moved = false;
+        const maxMoves = unit.speed;
+        // Pathfinding: avoid tiles with units (except self and target)
+        const isBlocked = (r, c) => {
+            const tile = document.getElementById(`tile-${r}-${c}`);
+            if (!tile) return true;
+            if (tile.dataset.unitOnTile && tile.dataset.unitOnTile !== unit.id && !(r === targetEnemy.row && c === targetEnemy.col)) return true;
+            return false;
+        };
+        // Find path to target
+        const path = findPath(unit.row, unit.col, targetEnemy.row, targetEnemy.col, isBlocked);
+        if (path && path.length > 0) {
+            // Move up to speed or until adjacent to target
+            let steps = Math.min(maxMoves, path.length);
+            for (let i = 0; i < steps; i++) {
+                const next = path[i];
+                // If next tile is the target's tile and we're not in range, stop (don't move into enemy)
+                if (next.r === targetEnemy.row && next.c === targetEnemy.col && getDistance(unit, targetEnemy) > 1) break;
+                const oldTile = document.getElementById(`tile-${unit.row}-${unit.col}`);
+                const newTile = document.getElementById(`tile-${next.r}-${next.c}`);
+                const unitElement = document.getElementById(unit.id);
+                if (oldTile && newTile && unitElement) {
+                    // Animate the movement for this step
+                    unitElement.style.transition = 'transform 0.2s ease-in-out';
+                    const oldRect = oldTile.getBoundingClientRect();
+                    const newRect = newTile.getBoundingClientRect();
+                    const dx = newRect.left - oldRect.left;
+                    const dy = newRect.top - oldRect.top;
+                    unitElement.style.transform = `translate(${dx}px, ${dy}px)`;
+                    await sleep(200);
+                    unitElement.style.transform = '';
+                    unitElement.style.transition = '';
+                    // Update position after animation
+                    unit.row = next.r;
+                    unit.col = next.c;
+                    delete oldTile.dataset.unitOnTile;
+                    newTile.dataset.unitOnTile = unit.id;
+                    newTile.appendChild(unitElement);
+                    moved = true;
+                } else {
+                    break;
+                }
+                // If after moving, we're adjacent to the target, stop
+                if (getDistance(unit, targetEnemy) <= unit.range) break;
+            }
+        }
+        // After all moves are complete
         if (moved) {
             const newTile = document.getElementById(`tile-${unit.row}-${unit.col}`);
             if (newTile && newTile.dataset.terrain === 'water' && !unit.waterAdaptive) {
@@ -910,10 +1054,129 @@ document.addEventListener("DOMContentLoaded", () => {
                     logMessage(`${target.name} is stunned and will skip their next turn!`, 'important', false, target.faction);
                 }
                 break;
+            case 'charge':
+                // Cavalry Charge logic
+                // If a charge would kill the target (with +10 bonus), perform the charge. If not, move up to 2 tiles toward the target and attack normally (same turn).
+                if (!target) break;
+                const dr = target.row - attacker.row;
+                const dc = target.col - attacker.col;
+                let dir = null;
+                if (dr === 0 && Math.abs(dc) > 0 && Math.abs(dc) <= 3) dir = { r: 0, c: Math.sign(dc) };
+                if (dc === 0 && Math.abs(dr) > 0 && Math.abs(dr) <= 3) dir = { r: Math.sign(dr), c: 0 };
+                if (dir) {
+                    // Check for clear path (enemy units block, friendly do not)
+                    let blocked = false;
+                    for (let i = 1; i < Math.max(Math.abs(dr), Math.abs(dc)); i++) {
+                        const checkRow = attacker.row + dir.r * i;
+                        const checkCol = attacker.col + dir.c * i;
+                        const checkTile = document.getElementById(`tile-${checkRow}-${checkCol}`);
+                        if (checkTile && checkTile.dataset.unitOnTile && !(checkRow === target.row && checkCol === target.col)) {
+                            const unitId = checkTile.dataset.unitOnTile;
+                            const unitOnTile = placedUnits[unitId];
+                            if (unitOnTile && unitOnTile.faction !== attacker.faction) {
+                                blocked = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!blocked) {
+                        // Calculate if charge would kill the target
+                        const chargeDamage = Math.max(1, attacker.attack - target.defense) + 10;
+                        if (target.currentHp <= chargeDamage) {
+                            // Visual streak effect on all tiles in the path
+                            for (let i = 1; i <= Math.max(Math.abs(dr), Math.abs(dc)); i++) {
+                                const streakRow = attacker.row + dir.r * i;
+                                const streakCol = attacker.col + dir.c * i;
+                                const streakTile = document.getElementById(`tile-${streakRow}-${streakCol}`);
+                                if (streakTile) createCavalryStreakEffect(streakTile);
+                            }
+                            // Log message
+                            logText = `🐎 Cavalry charges into ${target.name}!`;
+                            // Charge attack: +10 bonus damage
+                            target.currentHp -= chargeDamage;
+                            if (target.healthBar) updateHealthBar(target, target.healthBar);
+                            skipNormalAttack = true;
+                            if (target.currentHp <= 0) {
+                                // Move Cavalry into the target's tile
+                                const oldTile = document.getElementById(`tile-${attacker.row}-${attacker.col}`);
+                                const newTile = document.getElementById(`tile-${target.row}-${target.col}`);
+                                if (oldTile && newTile) {
+                                    delete oldTile.dataset.unitOnTile;
+                                    newTile.dataset.unitOnTile = attacker.id;
+                                    attacker.row = target.row;
+                                    attacker.col = target.col;
+                                    const unitElement = document.getElementById(attacker.id);
+                                    if (unitElement) newTile.appendChild(unitElement);
+                                }
+                                logMessage(`${target.name} is trampled by the Cavalry's charge!`, 'death', true, target.faction);
+                                removeUnit(target);
+                            } else {
+                                // Move Cavalry to one tile before the target
+                                const stopRow = attacker.row + dir.r * (Math.max(Math.abs(dr), Math.abs(dc)) - 1);
+                                const stopCol = attacker.col + dir.c * (Math.max(Math.abs(dr), Math.abs(dc)) - 1);
+                                const oldTile = document.getElementById(`tile-${attacker.row}-${attacker.col}`);
+                                const stopTile = document.getElementById(`tile-${stopRow}-${stopCol}`);
+                                if (oldTile && stopTile) {
+                                    delete oldTile.dataset.unitOnTile;
+                                    stopTile.dataset.unitOnTile = attacker.id;
+                                    attacker.row = stopRow;
+                                    attacker.col = stopCol;
+                                    const unitElement = document.getElementById(attacker.id);
+                                    if (unitElement) stopTile.appendChild(unitElement);
+                                }
+                            }
+                        } else {
+                            // Not lethal: move up to 2 tiles toward the target, then attack normally
+                            let moves = Math.min(2, Math.max(Math.abs(dr), Math.abs(dc)) - 1);
+                            let moved = false;
+                            let newRow = attacker.row;
+                            let newCol = attacker.col;
+                            for (let i = 1; i <= moves; i++) {
+                                const nextRow = attacker.row + dir.r * i;
+                                const nextCol = attacker.col + dir.c * i;
+                                const nextTile = document.getElementById(`tile-${nextRow}-${nextCol}`);
+                                if (nextTile && !nextTile.dataset.unitOnTile) {
+                                    newRow = nextRow;
+                                    newCol = nextCol;
+                                    moved = true;
+                                } else {
+                                    break;
+                                }
+                            }
+                            if (moved) {
+                                const oldTile = document.getElementById(`tile-${attacker.row}-${attacker.col}`);
+                                const newTile = document.getElementById(`tile-${newRow}-${newCol}`);
+                                if (oldTile && newTile) {
+                                    delete oldTile.dataset.unitOnTile;
+                                    newTile.dataset.unitOnTile = attacker.id;
+                                    attacker.row = newRow;
+                                    attacker.col = newCol;
+                                    const unitElement = document.getElementById(attacker.id);
+                                    if (unitElement) newTile.appendChild(unitElement);
+                                }
+                            }
+                            // After moving, attack normally if in range
+                            if (Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col) === 1) {
+                                // Log message for move and attack
+                                logText = `🐎 Cavalry advances and attacks ${target.name}!`;
+                                // Normal attack (already buffed to 10)
+                                const normalDamage = Math.max(1, attacker.attack - target.defense);
+                                target.currentHp -= normalDamage;
+                                if (target.healthBar) updateHealthBar(target, target.healthBar);
+                                if (target.currentHp <= 0) {
+                                    logMessage(`${target.name} is defeated by the Cavalry!`, 'death', true, target.faction);
+                                    removeUnit(target);
+                                }
+                                skipNormalAttack = true;
+                            }
+                        }
+                    }
+                }
+                break;
             default:
                 logText = `${attacker.name} attempts a special move, but nothing happens.`;
         }
-        logMessage(logText, 'spell', true, attacker.faction);
+        if (logText) logMessage(logText, 'important', true, attacker.faction);
         return skipNormalAttack;
     }
 
@@ -923,17 +1186,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!unit.bonuses) unit.bonuses = [];
     }
 
-    const originalAttackUnit = attackUnit;
-    attackUnit = function(attacker, target) {
-        const result = originalAttackUnit.apply(this, arguments);
-        if (target && target.faction === 'crown') updateUnitStatusPanel();
-        return result;
-    };
-
     function attackUnit(attacker, target) {
         if (!attacker || !target || attacker.currentHp <= 0 || target.currentHp <= 0) {
             return false; // Attack failed
         }
+        // Initialize tracking variables if they don't exist
+        if (attacker.criticalHits === undefined) attacker.criticalHits = 0;
+        if (attacker.highestHit === undefined) attacker.highestHit = 0;
+
         // --- Cleric always prioritizes healing ---
         if (attacker.name === 'Cleric') {
             // Find all allies within range (4 tiles) who are wounded
@@ -1005,6 +1265,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const damage = Math.max(1, attacker.attack - target.defense);
         const isCrit = Math.random() < 0.1; // 10% chance for critical hit
         const finalDamage = isCrit ? damage * 2 : damage;
+
+        // Track critical hits and highest hit
+        if (isCrit) attacker.criticalHits++;
+        if (finalDamage > attacker.highestHit) attacker.highestHit = finalDamage;
+
         if (attacker.name === "Wizard" || attacker.name === "Shaman") {
             // Wizard's and Shaman's splash damage attack
             const affectedUnits = getUnitsInArea(target.row, target.col);
@@ -1115,7 +1380,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }, duration);
     }
 
-    function processNextUnitAction() {
+    // Update processNextUnitAction to await moveUnit
+    async function processNextUnitAction() {
         if (!battleStarted) return; // Stop if battle ended prematurely
 
         // Check for victory before processing the next unit
@@ -1176,8 +1442,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 return; // Exit early as the attack will handle the next step
             } else {
-                // Try to move towards the nearest enemy (only one step per action)
-                actionTaken = moveUnit(unit, enemy);
+                // Await step-by-step movement
+                actionTaken = await moveUnit(unit, enemy);
+                // After movement, check if now in range to attack
+                const newDistance = getDistance(unit, enemy);
+                if (newDistance <= unit.range) {
+                    await attackUnit(unit, enemy);
+                }
             }
         } else {
             logMessage(`${unit.name} (${unit.id.substring(0,4)}) finds no enemies.`, 'normal');
@@ -1218,10 +1489,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const crownUnitsAlive = Object.values(placedUnits).some(u => u && u.faction === 'crown' && u.currentHp > 0);
         const hordeUnitsAlive = Object.values(placedUnits).some(u => u && u.faction === 'horde' && u.currentHp > 0);
 
-        // Check only if battle has started to avoid premature victory messages
-        // Or if one side is already empty before the first action
-        if (!battleStarted && !(crownUnitsAlive && hordeUnitsAlive)) return false; // Don't check before start unless one side is empty
-        if (!battleStarted && (crownUnitsAlive && hordeUnitsAlive)) return false; // Don't check if both have units before start
+        if (!battleStarted && !(crownUnitsAlive && hordeUnitsAlive)) return false;
+        if (!battleStarted && (crownUnitsAlive && hordeUnitsAlive)) return false;
 
         let message = null;
         let victory = false;
@@ -1232,7 +1501,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (!crownUnitsAlive && hordeUnitsAlive) {
             message = "Defeat!";
             victory = true;
-        } else if (!crownUnitsAlive && !hordeUnitsAlive && turnNumber > 0) { // Only declare draw after turn 0
+        } else if (!crownUnitsAlive && !hordeUnitsAlive && turnNumber > 0) {
             message = "Mutual Annihilation!";
             victory = true;
         }
@@ -1241,15 +1510,157 @@ document.addEventListener("DOMContentLoaded", () => {
             logMessage(message);
             if (unitStatsDisplay) unitStatsDisplay.innerHTML = message;
             if (showOverlay && gameOverOverlay && gameOverMessage) {
+                // Generate battle statistics
+                const stats = generateBattleStats();
+                // Set only the main message in #game-over-message
                 gameOverMessage.textContent = message;
+                // Set the stats/summary in #game-over-stats
+                const gameOverStats = document.getElementById('game-over-stats');
+                if (gameOverStats) {
+                    gameOverStats.innerHTML = `
+                        <div class="battle-stats">
+                            <div class="stats-section">
+                                <h3>Battle Summary</h3>
+                                <p>Total Turns: ${turnNumber}</p>
+                                <p>Winner: ${!hordeUnitsAlive ? 'Crown' : 'Horde'}</p>
+                                <p>Total Units Deployed: ${stats.totalDeployed}</p>
+                                <p>Total Units Lost: ${stats.totalLost}</p>
+                            </div>
+                            <div class="stats-section">
+                                <h3>Unit Performance</h3>
+                                <p><span class="unit-stat-image ${stats.mostValuableUnit.image}"></span> Most Valuable: ${stats.mostValuableUnit.name} (${stats.mostValuableUnit.damage} damage)</p>
+                                <p><span class="unit-stat-image ${stats.mostDurableUnit.image}"></span> Most Durable: ${stats.mostDurableUnit.name} (${stats.mostDurableUnit.damage} damage taken)</p>
+                                <p><span class="unit-stat-image ${stats.mostKills.image}"></span> Most Kills: ${stats.mostKills.name} (${stats.mostKills.kills} kills)</p>
+                                <p><span class="unit-stat-image ${stats.longestSurvivor.image}"></span> Longest Survivor: ${stats.longestSurvivor.name} (${stats.longestSurvivor.turns} turns)</p>
+                            </div>
+                            <div class="stats-section">
+                                <h3>Heroes</h3>
+                                <p>Heroes Promoted: ${stats.heroesPromoted}</p>
+                                ${stats.heroList ? `<p>${stats.heroList}</p>` : ''}
+                            </div>
+                            <div class="stats-section">
+                                <h3>Damage Statistics</h3>
+                                <p>Total Damage Dealt: ${stats.totalDamage}</p>
+                                <p>Highest Single Hit: ${stats.highestHit}</p>
+                                <p>Critical Hits: ${stats.criticalHits}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                // Hide unit status panel and log area for a clean end screen
+                const unitStatusPanel = document.getElementById('unit-status-panel');
+                const logArea = document.getElementById('log-area');
+                if (unitStatusPanel) unitStatusPanel.style.display = 'none';
+                if (logArea) logArea.style.display = 'none';
                 gameOverOverlay.classList.add("active");
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-            battleStarted = false; // End the battle state
-            if (battleTimeout) clearTimeout(battleTimeout); // Stop any pending actions
+            battleStarted = false;
+            if (battleTimeout) clearTimeout(battleTimeout);
             setPanelDefaults('gameover');
             return true;
         }
         return false;
+    }
+
+    // Add new function to generate battle statistics
+    function generateBattleStats() {
+        const stats = {
+            totalDeployed: 0,
+            totalLost: 0,
+            mostValuableUnit: { name: 'None', damage: 0, image: '' },
+            mostDurableUnit: { name: 'None', damage: 0, image: '' },
+            mostKills: { name: 'None', kills: 0, image: '' },
+            longestSurvivor: { name: 'None', turns: 0, image: '' },
+            heroesPromoted: 0,
+            heroList: [],
+            totalDamage: 0,
+            highestHit: 0,
+            criticalHits: 0
+        };
+
+        // Track all units that were ever in the battle
+        const allUnits = Object.values(placedUnits);
+        const crownUnits = allUnits.filter(u => u.faction === 'crown');
+        const hordeUnits = allUnits.filter(u => u.faction === 'horde');
+
+        // Basic counts
+        stats.totalDeployed = allUnits.length;
+        stats.totalLost = allUnits.filter(u => u.currentHp <= 0).length;
+
+        // Find most valuable unit (most damage dealt)
+        let maxDamage = 0;
+        allUnits.forEach(unit => {
+            const unitDamage = unit.totalDamage || 0;
+            if (unitDamage > maxDamage) {
+                maxDamage = unitDamage;
+                stats.mostValuableUnit = {
+                    name: unit.name || 'Unknown',
+                    damage: unitDamage,
+                    image: `unit-${(unit.name || 'unknown').toLowerCase()}`
+                };
+            }
+        });
+
+        // Find most durable unit (took most damage but survived)
+        let maxDamageTaken = 0;
+        allUnits.forEach(unit => {
+            const damageTaken = (unit.hp || 0) - (unit.currentHp || 0);
+            if (damageTaken > maxDamageTaken && unit.currentHp > 0) {
+                maxDamageTaken = damageTaken;
+                stats.mostDurableUnit = {
+                    name: unit.name || 'Unknown',
+                    damage: damageTaken,
+                    image: `unit-${(unit.name || 'unknown').toLowerCase()}`
+                };
+            }
+        });
+
+        // Find unit with most kills
+        let maxKills = 0;
+        allUnits.forEach(unit => {
+            const unitKills = unit.kills || 0;
+            if (unitKills > maxKills) {
+                maxKills = unitKills;
+                stats.mostKills = {
+                    name: unit.name || 'Unknown',
+                    kills: unitKills,
+                    image: `unit-${(unit.name || 'unknown').toLowerCase()}`
+                };
+            }
+        });
+
+        // Find longest surviving unit
+        let maxTurns = 0;
+        allUnits.forEach(unit => {
+            const unitTurns = unit.turnsSurvived || 0;
+            if (unitTurns > maxTurns) {
+                maxTurns = unitTurns;
+                stats.longestSurvivor = {
+                    name: unit.name || 'Unknown',
+                    turns: unitTurns,
+                    image: `unit-${(unit.name || 'unknown').toLowerCase()}`
+                };
+            }
+        });
+
+        // Count heroes and create hero list
+        const heroes = allUnits.filter(u => u.isHero);
+        stats.heroesPromoted = heroes.length;
+        stats.heroList = heroes.map(h => ({
+            name: h.heroName || 'Unknown Hero',
+            unit: h.name || 'Unknown Unit',
+            kills: h.kills || 0,
+            damage: h.totalDamage || 0,
+            image: `unit-${(h.name || 'unknown').toLowerCase()}`
+        }));
+
+        // Calculate total damage and critical hits
+        stats.totalDamage = allUnits.reduce((sum, unit) => sum + (unit.totalDamage || 0), 0);
+        stats.highestHit = Math.max(...allUnits.map(u => u.highestHit || 0));
+        stats.criticalHits = allUnits.reduce((sum, unit) => sum + (unit.criticalHits || 0), 0);
+
+        return stats;
     }
 
     function runBattleSimulation() {
@@ -1436,19 +1847,22 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         
         // Reset points display
+        const pointsDisplay = document.getElementById('points-display');
         if (pointsDisplay) {
-            pointsDisplay.textContent = 'Points: 1000';
+            pointsDisplay.textContent = `Points: ${playerPoints}`;
+            pointsDisplay.classList.remove('error');
         }
-        
-        // Reset unit stats display
-        if (unitStatsDisplay) {
-            unitStatsDisplay.innerHTML = 'Select a unit to see stats.';
-        }
-        
-        // Force a reflow to ensure CSS transitions work
-        if (welcomeScreen) {
-            welcomeScreen.offsetHeight;
-        }
+
+        // Reset mode selection buttons
+        const modeButtons = document.querySelectorAll('.mode-select-btn');
+        modeButtons.forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('selected');
+        });
+
+        // Restore their display (do not redeclare, just reuse existing variables)
+        if (unitStatusPanel) unitStatusPanel.style.display = '';
+        if (logArea) logArea.style.display = '';
     }
 
     // Play Again button logic
@@ -1766,6 +2180,25 @@ document.addEventListener("DOMContentLoaded", () => {
         blast.style.zIndex = '10';
         tile.appendChild(blast);
         setTimeout(() => blast.remove(), 500);
+    }
+
+    // Add this helper function for the Cavalry's streak effect
+    function createCavalryStreakEffect(tile) {
+        const streak = document.createElement('div');
+        streak.style.position = 'absolute';
+        streak.style.left = '0';
+        streak.style.top = '0';
+        streak.style.width = '100%';
+        streak.style.height = '100%';
+        streak.style.pointerEvents = 'none';
+        streak.style.background = 'linear-gradient(90deg, rgba(255,255,0,0.3) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,0,0.3) 100%)';
+        streak.style.opacity = '0.8';
+        streak.style.zIndex = '12';
+        streak.style.borderRadius = '12px';
+        streak.style.transition = 'opacity 0.3s';
+        tile.appendChild(streak);
+        setTimeout(() => { streak.style.opacity = '0'; }, 200);
+        setTimeout(() => streak.remove(), 500);
     }
 });
 

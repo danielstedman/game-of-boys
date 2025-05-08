@@ -26,8 +26,16 @@
         <div id="game-board-container">
             <div id="game-board"></div>
             <div id="game-over-overlay" class="overlay">
-                <h2 id="game-over-message"></h2>
-                <button id="play-again-btn" style="margin-top: 20px; font-size: 1.1em; padding: 10px 24px; border-radius: 6px; border: 2px solid #888; background: #eee; color: #333; cursor: pointer;">Play Again</button>
+                <div class="game-over-panel">
+                    <div class="game-over-images">
+                        <img src="img/knight.png" alt="Knight" class="game-over-img" />
+                        <img src="img/wizard.png" alt="Wizard" class="game-over-img" />
+                        <img src="img/troll.png" alt="Troll" class="game-over-img" />
+                    </div>
+                    <div id="game-over-message" class="game-over-title"></div>
+                    <div id="game-over-stats"></div>
+                    <button id="play-again-btn" class="game-over-btn">Play Again</button>
+                </div>
             </div>
         </div>
         <div id="log-area" style="position: relative;">
