@@ -1470,8 +1470,44 @@ document.addEventListener("DOMContentLoaded", () => {
         turnNumber++;
         logMessage(`--- Turn ${turnNumber} ---`, 'important');
         
-        // Determine unit order for this turn
-        currentTurnUnitOrder = Object.keys(placedUnits).filter(id => placedUnits[id] && placedUnits[id].currentHp > 0);
+        // Get all alive units
+        const aliveUnits = Object.entries(placedUnits)
+            .filter(([_, unit]) => unit && unit.currentHp > 0)
+            .map(([id, unit]) => ({ id, ...unit }));
+
+        // Group units by speed
+        const speedGroups = {};
+        aliveUnits.forEach(unit => {
+            const speed = unit.speed;
+            if (!speedGroups[speed]) {
+                speedGroups[speed] = {
+                    crown: [],
+                    horde: []
+                };
+            }
+            speedGroups[speed][unit.faction].push(unit.id);
+        });
+
+        // Create turn order by alternating within each speed group
+        currentTurnUnitOrder = [];
+        Object.keys(speedGroups).sort((a, b) => b - a).forEach(speed => {
+            const group = speedGroups[speed];
+            const crownUnits = group.crown;
+            const hordeUnits = group.horde;
+            
+            // Alternate between factions within this speed group
+            while (crownUnits.length > 0 || hordeUnits.length > 0) {
+                // Always start with Crown if there are Crown units
+                if (crownUnits.length > 0) {
+                    currentTurnUnitOrder.push(crownUnits.shift());
+                }
+                // Then add Horde if there are Horde units
+                if (hordeUnits.length > 0) {
+                    currentTurnUnitOrder.push(hordeUnits.shift());
+                }
+            }
+        });
+
         currentUnitIndex = 0;
 
         // Increment turnsSurvived for all units and check hero promotion
@@ -1710,6 +1746,7 @@ document.addEventListener("DOMContentLoaded", () => {
         proj.style.top = (fromRect.top - boardRect.top + fromRect.height / 2 - 4) + 'px';
         proj.style.position = 'absolute';
         proj.style.transition = 'transform 0.28s linear';
+        
         // Directional arrow sprite logic
         if (type === 'arrow') {
             // Get grid positions from tile IDs
@@ -1731,17 +1768,28 @@ document.addEventListener("DOMContentLoaded", () => {
             proj.style.height = '16px';
             proj.style.borderRadius = '0';
             proj.style.boxShadow = 'none';
+        } else if (type === 'fire') {
+            proj.style.backgroundImage = 'url("img/fireball.png")';
+            proj.style.backgroundSize = 'contain';
+            proj.style.backgroundRepeat = 'no-repeat';
+            proj.style.backgroundPosition = 'center';
+            proj.style.backgroundColor = 'transparent';
+            proj.style.width = '24px';
+            proj.style.height = '24px';
+            proj.style.borderRadius = '50%';
+            proj.style.boxShadow = '0 0 10px #ff5722';
         }
+        
         fromTile.parentElement.appendChild(proj);
         // Calculate translation
         const dx = (toRect.left - fromRect.left) + (toRect.width - fromRect.width) / 2;
         const dy = (toRect.top - fromRect.top) + (toRect.height - fromRect.height) / 2;
         setTimeout(() => {
             proj.style.transform = `translate(${dx}px, ${dy}px)`;
-        }, 10);
+        }, 50);
         setTimeout(() => {
             proj.remove();
-        }, 350);
+        }, 300);
     }
 
     // --- Initialization ---
